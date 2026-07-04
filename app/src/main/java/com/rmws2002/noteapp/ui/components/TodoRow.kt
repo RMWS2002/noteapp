@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,6 +94,7 @@ fun TodoRow(
         modifier = modifier
             .fillMaxWidth()
             .alpha(cardAlpha)
+            .graphicsLayer { alpha = 0.99f }
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -129,20 +131,22 @@ fun TodoRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)
-                    .drawWithContent {
-                        drawContent()
-                        // Growing strikethrough line
-                        if (strikeProgress > 0f && strikeProgress < 0.99f) {
-                            val lineY = size.height / 2
-                            val lineEnd = size.width * strikeProgress
-                            drawLine(
-                                color = strikeLineColor,
-                                start = Offset(0f, lineY),
-                                end = Offset(lineEnd, lineY),
-                                strokeWidth = 1.5.dp.toPx()
-                            )
-                        }
-                    }
+                    .then(
+                        // Only use drawWithContent during active animation (0→1 growth)
+                        if (strikeProgress > 0.01f && strikeProgress < 0.99f) {
+                            Modifier.drawWithContent {
+                                drawContent()
+                                val lineY = size.height / 2
+                                val lineEnd = size.width * strikeProgress
+                                drawLine(
+                                    color = strikeLineColor,
+                                    start = Offset(0f, lineY),
+                                    end = Offset(lineEnd, lineY),
+                                    strokeWidth = 1.5.dp.toPx()
+                                )
+                            }
+                        } else Modifier
+                    )
             )
 
             // Due date

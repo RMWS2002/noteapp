@@ -18,6 +18,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:hardwareAccelerated="true"
             android:theme="@style/Theme.NoteApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
