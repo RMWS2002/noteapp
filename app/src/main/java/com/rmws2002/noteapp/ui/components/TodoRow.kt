@@ -94,7 +94,6 @@ fun TodoRow(
         modifier = modifier
             .fillMaxWidth()
             .alpha(cardAlpha)
-            .graphicsLayer { alpha = 0.99f }
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

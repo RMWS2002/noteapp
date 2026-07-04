@@ -81,8 +81,6 @@ fun HomeScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp)
-                // Hardware-accelerated layer for smooth scrolling on HyperOS
-                .graphicsLayer { alpha = 0.99f }
         ) {
             // 1. Greeting + Quote
             GreetingHeader()
@@ -135,7 +133,7 @@ fun HomeScreen(
                         todo = todo,
                         onToggle = { viewModel.toggleTodo(todo) },
                         onClick = { onTodoClick(todo.id) },
-                        modifier = Modifier.padding(vertical = 3.dp).graphicsLayer { alpha = 0.99f }
+                        modifier = Modifier.padding(vertical = 3.dp)
                     )
                 }
             }
