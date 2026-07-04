@@ -10,6 +10,7 @@ import com.rmws2002.noteapp.data.entity.ScheduleEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -27,6 +28,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         getStartOfDay(),
         getEndOfDay()
     ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun toggleTodo(todo: TodoEntity) {
+        viewModelScope.launch {
+            todoRepo.update(todo.copy(isCompleted = !todo.isCompleted))
+        }
+    }
 
     private fun getStartOfDay(): Long {
         val cal = Calendar.getInstance()

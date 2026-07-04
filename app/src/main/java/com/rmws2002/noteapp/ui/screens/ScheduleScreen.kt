@@ -5,19 +5,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -43,10 +37,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rmws2002.noteapp.data.entity.ScheduleEntity
+import com.rmws2002.noteapp.ui.components.EventDetailSheet
+import com.rmws2002.noteapp.ui.components.TimelineView
+import com.rmws2002.noteapp.ui.util.formatDate
 import com.rmws2002.noteapp.viewmodel.ScheduleViewModel
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +58,7 @@ fun ScheduleScreen(
     val selectedDate by viewModel.selectedDate.collectAsState()
     val allSchedules by viewModel.allSchedules.collectAsState()
     val daySchedules by viewModel.getSchedulesForDay(selectedDate).collectAsState(initial = emptyList())
+    var selectedEvent by remember { mutableStateOf<ScheduleEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -83,79 +84,90 @@ fun ScheduleScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Calendar widget
             CalendarWidget(
                 selectedDate = selectedDate,
+                schedules = allSchedules,
                 onDateSelected = { viewModel.selectDate(it) }
             )
 
-            // Day schedule list
-            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                item {
-                    Text(
-                        text = SimpleDateFormat("M月d日", Locale.CHINESE).format(Date(selectedDate)),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+            // Date text
+            Text(
+                text = formatDate(selectedDate),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+            )
+
+            if (daySchedules.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    EmptyHint("当天没有日程")
                 }
-                if (daySchedules.isEmpty()) {
-                    item { EmptyHint("当天没有日程") }
-                }
-                items(daySchedules) { schedule ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = timeFormat.format(Date(schedule.startTime)),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.width(50.dp)
-                        )
-                        Text(
-                            text = schedule.title,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
+            } else {
+                TimelineView(
+                    schedules = daySchedules,
+                    onEventClick = { selectedEvent = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 16.dp)
+                )
             }
         }
+    }
+
+    // Event detail bottom sheet
+    selectedEvent?.let { event ->
+        EventDetailSheet(
+            event = event,
+            onDismiss = { selectedEvent = null },
+            onDelete = { viewModel.deleteSchedule(it) }
+        )
     }
 }
 
 @Composable
 fun CalendarWidget(
     selectedDate: Long,
+    schedules: List<ScheduleEntity>,
     onDateSelected: (Long) -> Unit
 ) {
-    val cal = remember { Calendar.getInstance() }
-    var currentMonth by remember { mutableStateOf(Calendar.getInstance()) }
-    val monthFormat = SimpleDateFormat("yyyy年M月", Locale.CHINESE)
-    val dayNames = listOf("日", "一", "二", "三", "四", "五", "六")
+    var currentMonth by remember { mutableStateOf(YearMonth.now()) }
+    val monthFormat = DateTimeFormatter.ofPattern("yyyy年M月", Locale.CHINESE)
+    val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
 
-    Column(modifier = Modifier.padding(16.dp)) {
+    // Get event dates for current month
+    val monthStart = currentMonth.atDay(1)
+    val monthEnd = currentMonth.atEndOfMonth()
+    val eventDates = remember(schedules, currentMonth) {
+        schedules.filter { s ->
+            val date = java.time.Instant.ofEpochMilli(s.startTime)
+                .atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            date >= monthStart && date <= monthEnd
+        }.map { s ->
+            java.time.Instant.ofEpochMilli(s.startTime)
+                .atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        }.toSet()
+    }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         // Month navigation
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {
-                currentMonth = currentMonth.apply { add(Calendar.MONTH, -1) }
-            }) {
+            IconButton(onClick = { currentMonth = currentMonth.minusMonths(1) }) {
                 Icon(Icons.Default.ChevronLeft, contentDescription = "上月")
             }
             Text(
-                text = monthFormat.format(currentMonth.time),
+                text = currentMonth.format(monthFormat),
                 style = MaterialTheme.typography.titleMedium
             )
-            IconButton(onClick = {
-                currentMonth = currentMonth.apply { add(Calendar.MONTH, 1) }
-            }) {
+            IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
                 Icon(Icons.Default.ChevronRight, contentDescription = "下月")
             }
         }
@@ -167,48 +179,39 @@ fun CalendarWidget(
                     text = day,
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
+        Spacer(modifier = Modifier.height(4.dp))
+
         // Calendar grid
-        val daysInMonth = currentMonth.getActualMaximum(Calendar.DAY_OF_MONTH)
-        val firstDayOfWeek = Calendar.getInstance().apply {
-            timeInMillis = currentMonth.timeInMillis
-            set(Calendar.DAY_OF_MONTH, 1)
-            get(Calendar.DAY_OF_WEEK)
-        }.let {
-            it.set(Calendar.DAY_OF_MONTH, 1)
-            it.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY
-        }
+        val firstDayOfMonth = currentMonth.atDay(1)
+        val dow = firstDayOfMonth.dayOfWeek.value - 1 // Monday=1 -> 0-index
+        val daysInMonth = currentMonth.lengthOfMonth()
+        val today = LocalDate.now()
 
-        val todayCal = Calendar.getInstance()
-
-        // Create grid cells
-        val totalCells = firstDayOfWeek + daysInMonth
+        val totalCells = dow + daysInMonth
         val rows = (totalCells + 6) / 7
 
         for (row in 0 until rows) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 for (col in 0 until 7) {
                     val cellIndex = row * 7 + col
-                    val day = cellIndex - firstDayOfWeek + 1
-                    if (day in 1..daysInMonth) {
-                        val dateCal = Calendar.getInstance().apply {
-                            timeInMillis = currentMonth.timeInMillis
-                            set(Calendar.DAY_OF_MONTH, day)
-                            set(Calendar.HOUR_OF_DAY, 12)
-                        }
-                        val isSelected = selectedDate == dateCal.timeInMillis
-                        val isToday = todayCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
-                                todayCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
+                    val day = cellIndex - dow + 1
 
-                        Box(
+                    if (day in 1..daysInMonth) {
+                        val date = currentMonth.atDay(day)
+                        val isSelected = date.atStartOfDay(java.time.ZoneId.systemDefault())
+                            .toInstant().toEpochMilli() == selectedDate
+                        val isToday = date == today
+                        val hasEvent = date in eventDates
+
+                        Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(2.dp)
-                                .size(36.dp)
                                 .clip(CircleShape)
                                 .background(
                                     when {
@@ -217,8 +220,12 @@ fun CalendarWidget(
                                         else -> MaterialTheme.colorScheme.surface
                                     }
                                 )
-                                .clickable { onDateSelected(dateCal.timeInMillis) },
-                            contentAlignment = Alignment.Center
+                                .clickable {
+                                    val millis = date.atStartOfDay(java.time.ZoneId.systemDefault())
+                                        .toInstant().toEpochMilli()
+                                    onDateSelected(millis)
+                                },
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 text = day.toString(),
@@ -227,8 +234,24 @@ fun CalendarWidget(
                                     isSelected -> MaterialTheme.colorScheme.onPrimary
                                     isToday -> MaterialTheme.colorScheme.onPrimaryContainer
                                     else -> MaterialTheme.colorScheme.onSurface
-                                }
+                                },
+                                modifier = Modifier.padding(top = 4.dp)
                             )
+                            // Event dot
+                            if (hasEvent) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .padding(bottom = 3.dp)
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                            else MaterialTheme.colorScheme.primary,
+                                            CircleShape
+                                        )
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.size(4.dp))
+                            }
                         }
                     } else {
                         Spacer(modifier = Modifier.weight(1f))
@@ -237,9 +260,4 @@ fun CalendarWidget(
             }
         }
     }
-}
-
-@Composable
-private fun Spacer(modifier: Modifier) {
-    Box(modifier = modifier.height(36.dp))
 }

@@ -27,7 +27,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     @OptIn(ExperimentalCoroutinesApi::class)
     val noteResults: StateFlow<List<NoteEntity>> = _query
         .flatMapLatest { q ->
-            if (q.isBlank()) noteRepo.getAllNotes()
+            if (q.isBlank()) kotlinx.coroutines.flow.flowOf(emptyList())
             else noteRepo.searchNotes(q)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -35,7 +35,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     @OptIn(ExperimentalCoroutinesApi::class)
     val todoResults: StateFlow<List<TodoEntity>> = _query
         .flatMapLatest { q ->
-            if (q.isBlank()) todoRepo.getAllTodos()
+            if (q.isBlank()) kotlinx.coroutines.flow.flowOf(emptyList())
             else todoRepo.searchTodos(q)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
