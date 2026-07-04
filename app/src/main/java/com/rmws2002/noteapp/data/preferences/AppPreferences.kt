@@ -27,6 +27,8 @@ class AppPreferences(private val context: Context) {
     private val calendarSyncEnabledKey = booleanPreferencesKey("calendar_sync_enabled")
     private val selectedCalendarIdKey = longPreferencesKey("selected_calendar_id")
     private val selectedCalendarNameKey = stringPreferencesKey("selected_calendar_name")
+    private val notificationsEnabledKey = booleanPreferencesKey("notifications_enabled")
+    private val defaultReminderMinutesKey = intPreferencesKey("default_reminder_minutes")
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
         ThemeMode.fromInt(prefs[themeModeKey] ?: ThemeMode.SYSTEM.value)
@@ -42,6 +44,14 @@ class AppPreferences(private val context: Context) {
 
     val selectedCalendarName: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[selectedCalendarNameKey]
+    }
+
+    val notificationsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[notificationsEnabledKey] ?: true
+    }
+
+    val defaultReminderMinutes: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[defaultReminderMinutesKey] ?: 15
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -60,6 +70,18 @@ class AppPreferences(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[selectedCalendarIdKey] = id
             prefs[selectedCalendarNameKey] = name
+        }
+    }
+
+    suspend fun setNotificationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[notificationsEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setDefaultReminderMinutes(minutes: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[defaultReminderMinutesKey] = minutes
         }
     }
 }

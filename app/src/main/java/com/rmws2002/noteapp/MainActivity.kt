@@ -8,11 +8,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.rmws2002.noteapp.ui.navigation.NoteAppNavGraph
 import com.rmws2002.noteapp.ui.theme.NoteAppTheme
+import com.rmws2002.noteapp.util.NotificationHelper
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Create notification channels
+        NotificationHelper.createChannels(this)
         setContent {
             val app = application as NoteApp
             val themeMode by app.appPreferences.themeMode.collectAsState(

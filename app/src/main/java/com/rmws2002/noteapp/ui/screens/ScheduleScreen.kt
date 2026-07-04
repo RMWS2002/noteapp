@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,13 +60,22 @@ fun ScheduleScreen(
     val daySystemEvents = viewModel.getSystemEventsForDay(selectedDate)
     var selectedEvent by remember { mutableStateOf<ScheduleEntity?>(null) }
 
-    // Merge system event dates into calendar dots
+    // Refresh system events on screen resume
+    LaunchedEffect(Unit) {
+        viewModel.refreshSystemEvents()
+    }
+
+    // Merge system event dates into calendar dots (handle multi-day events)
     val allEventDates = remember(allSchedules, systemEvents) {
-        val local = allSchedules.map { s ->
-            Instant.ofEpochMilli(s.startTime).atZone(ZoneId.systemDefault()).toLocalDate()
+        val local = allSchedules.flatMap { s ->
+            val start = Instant.ofEpochMilli(s.startTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            val end = Instant.ofEpochMilli(s.endTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toList()
         }.toSet()
-        val sys = systemEvents.map { e ->
-            Instant.ofEpochMilli(e.startTime).atZone(ZoneId.systemDefault()).toLocalDate()
+        val sys = systemEvents.flatMap { e ->
+            val start = Instant.ofEpochMilli(e.startTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            val end = Instant.ofEpochMilli(e.endTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toList()
         }.toSet()
         local + sys
     }

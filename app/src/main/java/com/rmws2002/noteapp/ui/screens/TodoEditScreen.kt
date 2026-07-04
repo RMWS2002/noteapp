@@ -9,38 +9,66 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rmws2002.noteapp.data.entity.TodoEntity
+import com.rmws2002.noteapp.ui.components.parseColor
 import com.rmws2002.noteapp.viewmodel.TodoViewModel
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+private val dateFormat = SimpleDateFormat("M月d日 EEEE", Locale.CHINESE)
+private val timeFormat = SimpleDateFormat("HH:mm", Locale.CHINESE)
+private val fullDateFormat = SimpleDateFormat("yyyy年M月d日 HH:mm", Locale.CHINESE)
+
+data class ReminderOption(val label: String, val minutesBefore: Int?)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,14 +77,29 @@ fun TodoEditScreen(
     onBack: () -> Unit,
     viewModel: TodoViewModel = viewModel()
 ) {
+    val tags by viewModel.tags.collectAsState()
     var title by remember { mutableStateOf("") }
     var dueDate by remember { mutableStateOf<Long?>(null) }
+    var hasTime by remember { mutableStateOf(false) }
+    var reminderMinutes by remember { mutableStateOf<Int?>(null) }
+    var selectedTagId by remember { mutableStateOf<Long?>(null) }
     var hasChanges by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var showReminderMenu by remember { mutableStateOf(false) }
     var initialLoaded by remember { mutableStateOf(false) }
-    val dateFormat = remember { SimpleDateFormat("yyyy年M月d日", Locale.CHINESE) }
+
+    val reminderOptions = listOf(
+        ReminderOption("不提醒", null),
+        ReminderOption("到点提醒", 0),
+        ReminderOption("5分钟前", 5),
+        ReminderOption("15分钟前", 15),
+        ReminderOption("30分钟前", 30),
+        ReminderOption("1小时前", 60),
+        ReminderOption("1天前", 1440)
+    )
 
     LaunchedEffect(todoId) {
         if (todoId != null && todoId > 0 && !initialLoaded) {
@@ -64,6 +107,12 @@ fun TodoEditScreen(
             todo?.let {
                 title = it.title
                 dueDate = it.dueDate
+                hasTime = it.hasTime
+                selectedTagId = it.tagId
+                // Derive reminder minutes from reminderTime if present
+                if (it.reminderTime != null && it.dueDate != null) {
+                    reminderMinutes = ((it.dueDate - it.reminderTime) / 60000).toInt()
+                }
                 initialLoaded = true
             }
         }
@@ -71,19 +120,20 @@ fun TodoEditScreen(
 
     fun saveAndBack() {
         if (title.isNotBlank()) {
+            val reminderTime = if (reminderMinutes != null && dueDate != null) {
+                dueDate!! - (reminderMinutes!! * 60 * 1000L)
+            } else null
             if (todoId == null || todoId == 0L) {
-                viewModel.saveTodo(title, dueDate, null)
+                viewModel.saveTodo(title, dueDate, hasTime, reminderTime, selectedTagId)
             } else {
-                viewModel.updateTodo(todoId, title, dueDate, null)
+                viewModel.updateTodo(todoId, title, dueDate, hasTime, reminderTime, selectedTagId)
             }
         }
         onBack()
     }
 
-    // Back handler
     BackHandler(enabled = hasChanges) { showDiscardDialog = true }
 
-    // Discard dialog
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
@@ -100,7 +150,6 @@ fun TodoEditScreen(
         )
     }
 
-    // Delete dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -111,9 +160,7 @@ fun TodoEditScreen(
                     showDeleteDialog = false
                     viewModel.deleteTodo(TodoEntity(id = todoId ?: 0, title = title))
                     onBack()
-                }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
-                }
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text("取消") }
@@ -123,48 +170,80 @@ fun TodoEditScreen(
 
     // Date picker dialog
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = dueDate ?: System.currentTimeMillis()
-        )
+        val state = rememberDatePickerState(initialSelectedDateMillis = dueDate ?: System.currentTimeMillis())
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        dueDate = it
+                    state.selectedDateMillis?.let { d ->
+                        // Preserve time of day if already set
+                        val cal = Calendar.getInstance().apply { timeInMillis = d }
+                        if (dueDate != null) {
+                            val oldCal = Calendar.getInstance().apply { timeInMillis = dueDate!! }
+                            cal.set(Calendar.HOUR_OF_DAY, oldCal.get(Calendar.HOUR_OF_DAY))
+                            cal.set(Calendar.MINUTE, oldCal.get(Calendar.MINUTE))
+                        } else {
+                            cal.set(Calendar.HOUR_OF_DAY, 23)
+                            cal.set(Calendar.MINUTE, 59)
+                        }
+                        dueDate = cal.timeInMillis
                         hasChanges = true
                     }
                     showDatePicker = false
                 }) { Text("确定") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("取消") }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("取消") } }
+        ) { DatePicker(state = state) }
+    }
+
+    // Time picker dialog
+    if (showTimePicker) {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = dueDate ?: System.currentTimeMillis()
+        }
+        val timeState = rememberTimePickerState(
+            initialHour = cal.get(Calendar.HOUR_OF_DAY),
+            initialMinute = cal.get(Calendar.MINUTE),
+            is24Hour = true
+        )
+        Dialog(onDismissRequest = { showTimePicker = false }) {
+            Column(Modifier.padding(24.dp)) {
+                Text("选择具体时间", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                TimePicker(state = timeState)
+                Row(Modifier.fillMaxWidth()) {
+                    TextButton(onClick = { showTimePicker = false }) { Text("取消") }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = {
+                        val c = Calendar.getInstance().apply {
+                            timeInMillis = dueDate ?: System.currentTimeMillis()
+                            set(Calendar.HOUR_OF_DAY, timeState.hour)
+                            set(Calendar.MINUTE, timeState.minute)
+                            set(Calendar.SECOND, 0)
+                        }
+                        dueDate = c.timeInMillis
+                        hasChanges = true
+                        showTimePicker = false
+                    }) { Text("确定") }
+                }
             }
-        ) {
-            DatePicker(state = datePickerState)
         }
     }
+
+    val isEditing = todoId != null && todoId > 0
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (todoId == null || todoId == 0L) "新建待办" else "编辑待办") },
+                title = { Text(if (isEditing) "编辑待办" else "新建待办", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     TextButton(onClick = {
                         if (hasChanges) showDiscardDialog = true else onBack()
-                    }) {
-                        Text("取消", color = MaterialTheme.colorScheme.primary)
-                    }
+                    }) { Text("取消", color = MaterialTheme.colorScheme.primary) }
                 },
                 actions = {
                     TextButton(onClick = { saveAndBack() }) {
                         Text("保存", color = MaterialTheme.colorScheme.primary)
-                    }
-                    if (todoId != null && todoId > 0) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "删除",
-                                tint = MaterialTheme.colorScheme.error)
-                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -175,48 +254,195 @@ fun TodoEditScreen(
         }
     ) { padding ->
         Column(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
-            OutlinedTextField(
+            Spacer(Modifier.height(12.dp))
+
+            // Title - large, borderless input
+            androidx.compose.material3.TextField(
                 value = title,
                 onValueChange = { title = it; hasChanges = true },
-                label = { Text("待办内容") },
+                placeholder = { Text("待办内容", style = MaterialTheme.typography.headlineSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                )) },
+                textStyle = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                colors = androidx.compose.material3.TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(16.dp))
 
-            // Due date picker row
+            // ---- DUE DATE ROW ----
+            SettingRow(
+                icon = { Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.primary) },
+                label = "截止日期",
+                value = if (dueDate != null) {
+                    if (hasTime) fullDateFormat.format(Date(dueDate!!))
+                    else dateFormat.format(Date(dueDate!!))
+                } else "不设截止",
+                valueColor = if (dueDate != null) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = { showDatePicker = true }
+            )
+
+            if (dueDate != null) {
+                Spacer(Modifier.height(4.dp))
+
+                // All-day toggle
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 52.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("全天", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.weight(1f))
+                    Switch(
+                        checked = !hasTime,
+                        onCheckedChange = { isAllDay ->
+                            hasTime = !isAllDay; hasChanges = true
+                        }
+                    )
+                }
+
+                if (hasTime) {
+                    // Time picker
+                    SettingRow(
+                        icon = { Icon(Icons.Default.AccessTime, null, tint = MaterialTheme.colorScheme.primary) },
+                        label = "具体时间",
+                        value = timeFormat.format(Date(dueDate!!)),
+                        onClick = { showTimePicker = true }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // ---- REMINDER ROW ----
+            if (dueDate != null) {
+                SettingRow(
+                    icon = { Icon(Icons.Default.Notifications, null, tint = MaterialTheme.colorScheme.primary) },
+                    label = "提醒",
+                    value = reminderOptions.firstOrNull { it.minutesBefore == reminderMinutes }?.label ?: "不提醒",
+                    valueColor = if (reminderMinutes != null) MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = { showReminderMenu = true }
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(8.dp))
+
+            // ---- TAG ROW ----
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDatePicker = true }
-                    .padding(vertical = 12.dp),
+                Modifier.fillMaxWidth().padding(vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.CalendarToday,
-                    contentDescription = "截止日期",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = if (dueDate != null) "截止：${dateFormat.format(Date(dueDate!!))}"
-                           else "设置截止日期",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp),
-                    color = if (dueDate != null) MaterialTheme.colorScheme.onSurface
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (dueDate != null) {
-                    TextButton(onClick = { dueDate = null; hasChanges = true }) {
-                        Text("清除")
+                Icon(Icons.Default.Label, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(20.dp))
+                Text("标签", style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.width(72.dp))
+                LazyRow {
+                    items(tags) { tag ->
+                        val isSelected = selectedTagId == tag.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                selectedTagId = if (isSelected) null else tag.id
+                                hasChanges = true
+                            },
+                            label = { Text(tag.name) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = parseColor(tag.color).copy(alpha = 0.15f),
+                                selectedContainerColor = parseColor(tag.color),
+                                labelColor = parseColor(tag.color),
+                                selectedLabelColor = Color.White
+                            ),
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
                     }
                 }
             }
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // ---- DELETE BUTTON (edit mode only) ----
+            if (isEditing) {
+                Spacer(Modifier.height(24.dp))
+                TextButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.width(8.dp))
+                    Text("删除待办", color = MaterialTheme.colorScheme.error)
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+        }
+    }
+
+    // Reminder dropdown
+    androidx.compose.material3.DropdownMenu(
+        expanded = showReminderMenu,
+        onDismissRequest = { showReminderMenu = false }
+    ) {
+        reminderOptions.forEach { option ->
+            DropdownMenuItem(
+                text = { Text(option.label) },
+                onClick = {
+                    reminderMinutes = option.minutesBefore
+                    hasChanges = true
+                    showReminderMenu = false
+                },
+                leadingIcon = if (option.minutesBefore == reminderMinutes) {
+                    { Icon(Icons.Default.Schedule, null, tint = MaterialTheme.colorScheme.primary) }
+                } else null
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(
+    icon: @Composable () -> Unit,
+    label: String,
+    value: String,
+    onClick: () -> Unit = {},
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    showArrow: Boolean = true
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        icon()
+        Spacer(Modifier.width(20.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.width(72.dp))
+        Text(value, style = MaterialTheme.typography.bodyLarge,
+            color = valueColor,
+            modifier = Modifier.weight(1f))
+        if (showArrow) {
+            Text("›", style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

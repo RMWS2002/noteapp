@@ -101,12 +101,28 @@ fun TodoRow(
                     }
             )
             if (todo.dueDate != null) {
-                Text(
-                    text = formatShortDate(todo.dueDate),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (todo.reminderTime != null) {
+                        Text(
+                            text = "🔔",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                    }
+                    Text(
+                        text = if (todo.hasTime) {
+                            val cal = java.util.Calendar.getInstance().apply { timeInMillis = todo.dueDate }
+                            String.format("%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+                        } else {
+                            formatShortDate(todo.dueDate)
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (todo.dueDate != null && todo.dueDate < System.currentTimeMillis() && !todo.isCompleted)
+                            MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
             }
         }
     }

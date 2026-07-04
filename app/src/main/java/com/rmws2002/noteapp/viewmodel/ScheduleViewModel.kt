@@ -1,17 +1,21 @@
 package com.rmws2002.noteapp.viewmodel
 
-import android.app.Application
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.rmws2002.noteapp.NoteApp
 import com.rmws2002.noteapp.data.calendar.SystemCalendarEvent
 import com.rmws2002.noteapp.data.entity.ScheduleEntity
+import com.rmws2002.noteapp.receiver.AlarmReceiver
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-class ScheduleViewModel(application: Application) : AndroidViewModel(application) {
+class ScheduleViewModel(application: android.app.Application) : AndroidViewModel(application) {
     private val app = application as NoteApp
     private val repo = app.scheduleRepository
     private val calSync = app.calendarSync
@@ -27,7 +31,6 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
     val systemEvents: StateFlow<List<SystemCalendarEvent>> = _systemEvents.asStateFlow()
 
     init {
-        // Attempt to load system events when ViewModel is created
         refreshSystemEvents()
     }
 
@@ -35,7 +38,7 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val cal = Calendar.getInstance()
-                cal.add(Calendar.MONTH, -2)  // Wider window for overlap detection
+                cal.add(Calendar.MONTH, -2)
                 val start = cal.timeInMillis
                 cal.add(Calendar.MONTH, 4)
                 val end = cal.timeInMillis
@@ -58,7 +61,7 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
         return repo.getSchedulesForDay(startOfDay, endOfDay)
     }
 
-    /** Get system calendar events for the selected day */
+    /** Get system calendar events for the selected day using overlap logic */
     fun getSystemEventsForDay(dayTimestamp: Long): List<SystemCalendarEvent> {
         val cal = Calendar.getInstance().apply { timeInMillis = dayTimestamp }
         cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
@@ -66,7 +69,8 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
         val startOfDay = cal.timeInMillis
         cal.add(Calendar.DAY_OF_MONTH, 1)
         val endOfDay = cal.timeInMillis
-        return _systemEvents.value.filter { it.startTime in startOfDay until endOfDay }
+        // Use overlap: event starts before day-end AND ends after day-start
+        return _systemEvents.value.filter { it.startTime < endOfDay && it.endTime > startOfDay }
     }
 
     fun selectDate(timestamp: Long) {
@@ -77,26 +81,71 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val enabled = prefs.calendarSyncEnabled.first()
             var synced = false
+            var calendarId = 0L
             if (enabled) {
                 try {
-                    val calendars = calSync.getAvailableCalendars()
-                    calSync.writeEvent(calendars.firstOrNull()?.id ?: 1L, title, description, startTime, endTime)
+                    // Use selected calendar or auto-detect default
+                    val selectedId = prefs.selectedCalendarId.first()
+                    calendarId = selectedId ?: calSync.getDefaultCalendarId()
+                    calSync.writeEvent(calendarId, title, description, startTime, endTime)
                     synced = true
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    Log.e("ScheduleVM", "Failed to sync to calendar", e)
+                }
             }
-            repo.insert(
-                ScheduleEntity(
-                    title = title.trim(),
-                    description = description.trim(),
-                    startTime = startTime,
-                    endTime = endTime,
-                    syncedToCalendar = synced
-                )
+            val entity = ScheduleEntity(
+                title = title.trim(),
+                description = description.trim(),
+                startTime = startTime,
+                endTime = endTime,
+                syncedToCalendar = synced
             )
+            val id = repo.insert(entity)
+
+            // Schedule notification
+            scheduleNotification(id, title, startTime)
         }
     }
 
     fun deleteSchedule(schedule: ScheduleEntity) {
-        viewModelScope.launch { repo.delete(schedule) }
+        viewModelScope.launch {
+            cancelNotification(schedule.id)
+            repo.delete(schedule)
+        }
+    }
+
+    private fun scheduleNotification(scheduleId: Long, title: String, startTime: Long) {
+        val reminderMinutes = 15 // default, can be customized later
+        val reminderTime = startTime - (reminderMinutes * 60 * 1000L)
+        if (reminderTime <= System.currentTimeMillis()) return
+
+        val intent = Intent(app, AlarmReceiver::class.java).apply {
+            action = AlarmReceiver.ACTION_SCHEDULE_REMINDER
+            putExtra(AlarmReceiver.EXTRA_SCHEDULE_ID, scheduleId)
+            putExtra(AlarmReceiver.EXTRA_TITLE, title)
+            putExtra(AlarmReceiver.EXTRA_START_TIME, startTime)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            app,
+            (scheduleId + 10000).toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarmManager = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.setExact(AlarmManager.RTC_WAKEUP, reminderTime, pendingIntent)
+    }
+
+    private fun cancelNotification(scheduleId: Long) {
+        val intent = Intent(app, AlarmReceiver::class.java).apply {
+            action = AlarmReceiver.ACTION_SCHEDULE_REMINDER
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            app,
+            (scheduleId + 10000).toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarmManager = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(pendingIntent)
     }
 }

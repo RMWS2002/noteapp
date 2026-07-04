@@ -172,21 +172,42 @@ fun NoteAppNavGraph() {
                 }
             }
 
-            // Overlay screens rendered on top
-            when (val o = overlay) {
-                is Overlay.NoteEdit -> {
-                    NoteEditScreen(noteId = o.id, onBack = { overlay = Overlay.None })
+            // Overlay screens rendered on top with slide animation
+            AnimatedVisibility(
+                visible = overlay is Overlay.NoteEdit,
+                enter = slideInHorizontally(initialOffsetX = { it }),
+                exit = slideOutHorizontally(targetOffsetX = { it })
+            ) {
+                if (overlay is Overlay.NoteEdit) {
+                    NoteEditScreen(noteId = (overlay as Overlay.NoteEdit).id, onBack = { overlay = Overlay.None })
                 }
-                is Overlay.TodoEdit -> {
-                    TodoEditScreen(todoId = o.id, onBack = { overlay = Overlay.None })
+            }
+            AnimatedVisibility(
+                visible = overlay is Overlay.TodoEdit,
+                enter = slideInHorizontally(initialOffsetX = { it }),
+                exit = slideOutHorizontally(targetOffsetX = { it })
+            ) {
+                if (overlay is Overlay.TodoEdit) {
+                    TodoEditScreen(todoId = (overlay as Overlay.TodoEdit).id, onBack = { overlay = Overlay.None })
                 }
-                is Overlay.ScheduleEdit -> {
+            }
+            AnimatedVisibility(
+                visible = overlay is Overlay.ScheduleEdit,
+                enter = slideInHorizontally(initialOffsetX = { it }),
+                exit = slideOutHorizontally(targetOffsetX = { it })
+            ) {
+                if (overlay is Overlay.ScheduleEdit) {
                     ScheduleEditScreen(onBack = { overlay = Overlay.None })
                 }
-                is Overlay.Settings -> {
+            }
+            AnimatedVisibility(
+                visible = overlay is Overlay.Settings,
+                enter = slideInHorizontally(initialOffsetX = { it }),
+                exit = slideOutHorizontally(targetOffsetX = { it })
+            ) {
+                if (overlay is Overlay.Settings) {
                     SettingsScreen(onBack = { overlay = Overlay.None })
                 }
-                is Overlay.None -> {}
             }
         }
     }

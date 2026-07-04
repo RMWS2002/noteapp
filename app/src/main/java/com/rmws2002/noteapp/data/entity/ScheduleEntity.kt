@@ -12,5 +12,6 @@ data class ScheduleEntity(
     @ColumnInfo(name = "start_time") val startTime: Long = 0,
     @ColumnInfo(name = "end_time") val endTime: Long = 0,
     @ColumnInfo(name = "synced_to_calendar") val syncedToCalendar: Boolean = false,
+    @ColumnInfo(name = "reminder_minutes") val reminderMinutes: Int = 15,
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis()
 )
