@@ -8,7 +8,7 @@ val PrimaryDark = Color(0xFF1B5FDF)
 val PrimaryLight = Color(0xFFD6E4FF)
 
 // Backgrounds
-val BgLight = Color(0xFFF2F2F7) // iOS light gray
+val BgLight = Color(0xFFF5F5F7) // iOS light gray (slightly brighter)
 val BgDark = Color(0xFF000000) // true black (iOS style)
 
 // Surfaces

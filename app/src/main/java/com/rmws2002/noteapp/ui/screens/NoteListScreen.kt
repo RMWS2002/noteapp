@@ -39,7 +39,7 @@ fun NoteListScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp)
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 100.dp)
         ) {
             // Tag filter row
             item {
@@ -72,7 +72,7 @@ fun NoteListScreen(
                     NoteCard(
                         note = note,
                         onClick = { onNoteClick(note.id) },
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier.padding(vertical = 5.dp)
                     )
                 }
             }

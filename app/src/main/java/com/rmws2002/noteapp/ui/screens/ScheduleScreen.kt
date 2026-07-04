@@ -167,7 +167,7 @@ fun CalendarWidget(
                         val isToday = date == today
                         val hasEvent = date in eventDates
 
-                        Column(Modifier.weight(1f).padding(2.dp).clip(CircleShape)
+                        Column(Modifier.weight(1f).padding(3.dp).clip(CircleShape)
                             .background(when {
                                 isSelected -> MaterialTheme.colorScheme.primary
                                 isToday -> MaterialTheme.colorScheme.primaryContainer
@@ -181,11 +181,11 @@ fun CalendarWidget(
                                     isSelected -> MaterialTheme.colorScheme.onPrimary
                                     isToday -> MaterialTheme.colorScheme.onPrimaryContainer
                                     else -> MaterialTheme.colorScheme.onSurface
-                                }, modifier = Modifier.padding(top = 4.dp))
-                            if (hasEvent) Box(Modifier.size(4.dp).padding(bottom = 3.dp)
+                                }, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+                            if (hasEvent) Box(Modifier.size(5.dp).padding(bottom = 6.dp)
                                 .background(if (isSelected) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.primary, CircleShape))
-                            else Spacer(Modifier.size(4.dp))
+                            else Spacer(Modifier.size(5.dp).padding(bottom = 6.dp))
                         }
                     } else {
                         Spacer(Modifier.weight(1f))

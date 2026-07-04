@@ -35,14 +35,15 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val cal = Calendar.getInstance()
-                cal.add(Calendar.MONTH, -1)
+                cal.add(Calendar.MONTH, -2)  // Wider window for overlap detection
                 val start = cal.timeInMillis
-                cal.add(Calendar.MONTH, 2)
+                cal.add(Calendar.MONTH, 4)
                 val end = cal.timeInMillis
                 _systemEvents.value = calSync.readEvents(start, end)
             } catch (e: SecurityException) {
-                // Permission not granted - silently skip
                 Log.d("ScheduleVM", "Calendar permission required")
+            } catch (e: Exception) {
+                Log.e("ScheduleVM", "Failed to read calendar events", e)
             }
         }
     }

@@ -56,8 +56,10 @@ class CalendarSyncHelper(private val context: Context) {
             CalendarContract.Events.DTEND,
             CalendarContract.Events.CALENDAR_DISPLAY_NAME
         )
-        val selection = "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTEND} <= ?"
-        val selectionArgs = arrayOf(startTime.toString(), endTime.toString())
+        // Use overlap logic: event overlaps with [startTime, endTime] if
+        // event.DTSTART < endTime AND event.DTEND > startTime
+        val selection = "${CalendarContract.Events.DTSTART} < ? AND ${CalendarContract.Events.DTEND} > ?"
+        val selectionArgs = arrayOf(endTime.toString(), startTime.toString())
         val cursor = context.contentResolver.query(
             CalendarContract.Events.CONTENT_URI,
             projection, selection, selectionArgs,

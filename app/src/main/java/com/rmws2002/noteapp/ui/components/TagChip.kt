@@ -42,10 +42,10 @@ fun TagChip(
         label = {
             Text(
                 text = tag.name,
-                style = MaterialTheme.typography.labelSmall
+                style = MaterialTheme.typography.labelMedium
             )
         },
         colors = chipColors,
-        modifier = modifier.padding(end = 6.dp)
+        modifier = modifier.padding(end = 8.dp)
     )
 }

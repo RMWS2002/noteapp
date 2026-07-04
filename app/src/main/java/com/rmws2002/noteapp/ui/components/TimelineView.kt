@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -105,9 +106,9 @@ fun TimelineView(
 private fun TimelineEventCard(
     event: ScheduleEntity, onClick: () -> Unit, modifier: Modifier = Modifier
 ) {
-    Card(modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(10.dp),
+    Card(modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 64.dp), shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(Modifier.padding(12.dp)) {
             Box(Modifier.width(4.dp).height(40.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
@@ -126,7 +127,7 @@ private fun TimelineEventCard(
 private fun SystemEventCard(
     event: SystemCalendarEvent, modifier: Modifier = Modifier
 ) {
-    Card(modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
+    Card(modifier.fillMaxWidth().heightIn(min = 64.dp), shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {

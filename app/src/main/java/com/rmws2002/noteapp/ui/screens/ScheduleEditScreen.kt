@@ -207,12 +207,12 @@ fun ScheduleEditScreen(
                 },
                 actions = {
                     TextButton(onClick = { saveAndBack() }) {
-                        Text("保存", color = MaterialTheme.colorScheme.onPrimary)
+                        Text("保存", color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }

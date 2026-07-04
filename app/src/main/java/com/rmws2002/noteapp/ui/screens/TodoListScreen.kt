@@ -33,20 +33,21 @@ fun TodoListScreen(
         if (todos.isEmpty()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp)
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 100.dp)
             ) {
                 item { EmptyHint("还没有待办事项，点击 + 添加") }
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 80.dp)
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 100.dp)
             ) {
                 items(todos, key = { it.id }) { todo ->
                     TodoRow(
                         todo = todo,
                         onToggle = { viewModel.toggleTodo(todo) },
-                        onClick = { onTodoClick(todo.id) }
+                        onClick = { onTodoClick(todo.id) },
+                        modifier = Modifier.padding(vertical = 5.dp)
                     )
                 }
             }

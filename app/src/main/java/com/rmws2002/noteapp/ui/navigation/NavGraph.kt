@@ -5,6 +5,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -134,14 +135,14 @@ fun NoteAppNavGraph() {
         topBar = topBar,
         bottomBar = bar
     ) { innerPadding ->
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().padding(innerPadding)) {
             // Pager fills available space, respecting Scaffold insets
             if (overlay is Overlay.None) {
                 HorizontalPager(
                     state = pager,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    // Each page gets innerPadding applied internally
+                    // Each page fills its slot
                     Box(Modifier.fillMaxSize()) {
                         when (page) {
                             0 -> HomeScreen(

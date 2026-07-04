@@ -144,25 +144,25 @@ fun NoteEditScreen(
                     TextButton(onClick = {
                         if (hasChanges) showDiscardDialog = true else onBack()
                     }) {
-                        Text("取消", color = MaterialTheme.colorScheme.onPrimary)
+                        Text("取消", color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 actions = {
                     // Save button
                     TextButton(onClick = { saveAndBack() }) {
-                        Text("保存", color = MaterialTheme.colorScheme.onPrimary)
+                        Text("保存", color = MaterialTheme.colorScheme.primary)
                     }
                     // Delete button (only for existing notes)
                     if (noteId != null && noteId > 0) {
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, contentDescription = "删除",
-                                tint = MaterialTheme.colorScheme.onPrimary)
+                                tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }
