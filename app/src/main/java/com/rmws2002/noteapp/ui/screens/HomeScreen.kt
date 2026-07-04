@@ -83,9 +83,11 @@ fun HomeScreen(
                 visible = revealStep >= 1,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
             ) {
-                GreetingHeader()
-                Spacer(Modifier.height(10.dp))
-                DailyQuote()
+                Column {
+                    GreetingHeader()
+                    Spacer(Modifier.height(10.dp))
+                    DailyQuote()
+                }
             }
         }
 

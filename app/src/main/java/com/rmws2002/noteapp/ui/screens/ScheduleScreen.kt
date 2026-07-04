@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -44,11 +43,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rmws2002.noteapp.data.calendar.SystemCalendarEvent
 import com.rmws2002.noteapp.data.entity.ScheduleEntity
 import com.rmws2002.noteapp.ui.components.EventDetailSheet
 import com.rmws2002.noteapp.ui.util.formatTime
 import com.rmws2002.noteapp.viewmodel.ScheduleViewModel
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -59,14 +62,38 @@ fun ScheduleScreen(
     viewModel: ScheduleViewModel = viewModel()
 ) {
     val selectedDate by viewModel.selectedDate.collectAsState()
+    val allSchedules by viewModel.allSchedules.collectAsState()
     val daySchedules by viewModel.getSchedulesForDay(selectedDate).collectAsState(initial = emptyList())
+    val systemEvents by viewModel.systemEvents.collectAsState()
+    val daySystemEvents = viewModel.getSystemEventsForDay(selectedDate)
     var selectedEvent by remember { mutableStateOf<ScheduleEntity?>(null) }
+
+    // Refresh system events on resume
+    LaunchedEffect(Unit) { viewModel.refreshSystemEvents() }
+
+    // Merge all event dates for date strip dots
+    val allEventDates = remember(allSchedules, systemEvents) {
+        val local = allSchedules.flatMap { s ->
+            val start = Instant.ofEpochMilli(s.startTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            val end = Instant.ofEpochMilli(s.endTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toList()
+        }.toSet()
+        val sys = systemEvents.flatMap { e ->
+            val start = Instant.ofEpochMilli(e.startTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            val end = Instant.ofEpochMilli(e.endTime).atZone(ZoneId.systemDefault()).toLocalDate()
+            generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toList()
+        }.toSet()
+        local + sys
+    }
+
+    val hasAnyEvents = daySchedules.isNotEmpty() || daySystemEvents.isNotEmpty()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // ── Horizontal date strip ──
             HorizontalDateStrip(
                 selectedDate = selectedDate,
+                eventDates = allEventDates,
                 onDateSelected = { viewModel.selectDate(it) }
             )
 
@@ -82,7 +109,7 @@ fun ScheduleScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
             )
 
-            if (daySchedules.isEmpty()) {
+            if (!hasAnyEvents) {
                 Box(
                     modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 48.dp),
                     contentAlignment = Alignment.TopCenter
@@ -94,15 +121,30 @@ fun ScheduleScreen(
                     )
                 }
             } else {
-                // ── Timeline ──
+                // ── Timeline: local schedules + system calendar events ──
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 20.dp)
                 ) {
-                    items(daySchedules, key = { it.id }) { schedule ->
+                    // Local schedules
+                    items(daySchedules, key = { "local_${it.id}" }) { schedule ->
                         TimelineItem(
-                            schedule = schedule,
+                            title = schedule.title,
+                            startTime = schedule.startTime,
+                            endTime = schedule.endTime,
+                            description = schedule.description,
+                            isSystemEvent = false,
                             onClick = { selectedEvent = schedule }
+                        )
+                    }
+                    // System calendar events
+                    items(daySystemEvents, key = { "sys_${it.id}" }) { event ->
+                        TimelineItem(
+                            title = event.title,
+                            startTime = event.startTime,
+                            endTime = event.endTime,
+                            description = event.calendarName,
+                            isSystemEvent = true,
+                            onClick = {}
                         )
                     }
                     item { Spacer(Modifier.height(80.dp)) }
@@ -129,10 +171,11 @@ fun ScheduleScreen(
     }
 }
 
-// ── Horizontal date strip: 14 days, scrollable ──
+// ── Horizontal date strip ──
 @Composable
 private fun HorizontalDateStrip(
     selectedDate: Long,
+    eventDates: Set<LocalDate>,
     onDateSelected: (Long) -> Unit
 ) {
     val today = remember {
@@ -142,9 +185,7 @@ private fun HorizontalDateStrip(
         }
     }
     val dayNames = listOf("日", "一", "二", "三", "四", "五", "六")
-    val dateFormat = remember { SimpleDateFormat("M/dd", Locale.getDefault()) }
 
-    // Generate 14 days starting from 3 days ago
     val days = remember {
         (0 until 14).map { offset ->
             Calendar.getInstance().apply {
@@ -164,6 +205,8 @@ private fun HorizontalDateStrip(
             val isSelected = ts == selectedDate
             val isToday = cal.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR) &&
                     cal.get(Calendar.YEAR) == today.get(Calendar.YEAR)
+            val date = Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate()
+            val hasEvents = date in eventDates
 
             Column(
                 modifier = Modifier
@@ -195,17 +238,37 @@ private fun HorizontalDateStrip(
                            else MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
+                // Event dot
+                Spacer(Modifier.height(2.dp))
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (hasEvents) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                        )
+                )
             }
         }
     }
 }
 
-// ── Single timeline item: time + dot + card ──
+// ── Timeline item: works for both local schedules and system events ──
 @Composable
 private fun TimelineItem(
-    schedule: ScheduleEntity,
+    title: String,
+    startTime: Long,
+    endTime: Long,
+    description: String,
+    isSystemEvent: Boolean,
     onClick: () -> Unit
 ) {
+    val dotColor = if (isSystemEvent)
+        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.6f)
+    else
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         // Time column
         Column(
@@ -213,22 +276,21 @@ private fun TimelineItem(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = formatTime(schedule.startTime),
+                text = formatTime(startTime),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
-            // Vertical dot + line connector
             Box(
                 modifier = Modifier.size(8.dp).padding(top = 6.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+                    .background(dotColor)
             )
             Spacer(Modifier.height(4.dp))
         }
 
         Spacer(Modifier.width(8.dp))
 
-        // Event card
+        // Card
         Card(
             modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
             shape = RoundedCornerShape(12.dp),
@@ -236,34 +298,40 @@ private fun TimelineItem(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isSystemEvent) {
+                        Text(
+                            "📅",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(end = 6.dp)
+                        )
+                    }
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 Text(
-                    text = schedule.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                val timeRange = "${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}"
-                Text(
-                    text = timeRange,
+                    text = "${formatTime(startTime)} - ${formatTime(endTime)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
                 )
-                if (schedule.description.isNotBlank()) {
+                if (description.isNotBlank()) {
                     Text(
-                        text = schedule.description,
+                        text = description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
             }
         }
     }
 }
-
-// Need this import
-
