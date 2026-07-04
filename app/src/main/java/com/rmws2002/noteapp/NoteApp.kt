@@ -1,6 +1,7 @@
 package com.rmws2002.noteapp
 
 import android.app.Application
+import com.rmws2002.noteapp.data.calendar.CalendarSyncHelper
 import com.rmws2002.noteapp.data.database.AppDatabase
 import com.rmws2002.noteapp.data.preferences.AppPreferences
 import com.rmws2002.noteapp.repository.NoteRepository
@@ -15,4 +16,5 @@ class NoteApp : Application() {
     val tagRepository: TagRepository by lazy { TagRepository(database.tagDao()) }
     val scheduleRepository: ScheduleRepository by lazy { ScheduleRepository(database.scheduleDao()) }
     val appPreferences: AppPreferences by lazy { AppPreferences(this) }
+    val calendarSync: CalendarSyncHelper by lazy { CalendarSyncHelper(this) }
 }

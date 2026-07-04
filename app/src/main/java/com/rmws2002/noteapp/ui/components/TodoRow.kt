@@ -1,5 +1,7 @@
 package com.rmws2002.noteapp.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
@@ -14,8 +16,12 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.rmws2002.noteapp.data.entity.TodoEntity
@@ -28,6 +34,25 @@ fun TodoRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val targetAlpha = if (todo.isCompleted) 1f else 0f
+    val animProgress by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = tween(durationMillis = 400),
+        label = "strike"
+    )
+
+    val completedColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val activeColor = MaterialTheme.colorScheme.onSurface
+    val targetColor = if (todo.isCompleted) completedColor else activeColor
+    val textColor = if (animProgress > 0f) {
+        lerpColor(activeColor, targetColor, animProgress)
+    } else {
+        targetColor
+    }
+
+    val strikeColor = completedColor
+    val strikeAlpha = animProgress
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -56,13 +81,23 @@ fun TodoRow(
             Text(
                 text = todo.title,
                 style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (todo.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                color = if (todo.isCompleted) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-                modifier = Modifier.weight(1f)
+                textDecoration = if (animProgress > 0.5f) TextDecoration.LineThrough else TextDecoration.None,
+                color = textColor,
+                modifier = Modifier
+                    .weight(1f)
+                    .drawWithContent {
+                        drawContent()
+                        if (strikeAlpha > 0f) {
+                            val lineY = size.height / 2
+                            val lineEnd = size.width * strikeAlpha
+                            drawLine(
+                                color = strikeColor.copy(alpha = strikeAlpha),
+                                start = Offset(0f, lineY),
+                                end = Offset(lineEnd, lineY),
+                                strokeWidth = 2.dp.toPx()
+                            )
+                        }
+                    }
             )
             if (todo.dueDate != null) {
                 Text(
@@ -74,4 +109,13 @@ fun TodoRow(
             }
         }
     }
+}
+
+private fun lerpColor(start: Color, end: Color, fraction: Float): Color {
+    return Color(
+        red = start.red + (end.red - start.red) * fraction,
+        green = start.green + (end.green - start.green) * fraction,
+        blue = start.blue + (end.blue - start.blue) * fraction,
+        alpha = start.alpha + (end.alpha - start.alpha) * fraction
+    )
 }

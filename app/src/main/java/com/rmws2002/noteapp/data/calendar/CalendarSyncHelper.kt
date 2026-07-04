@@ -12,6 +12,15 @@ data class CalendarAccount(
     val accountName: String
 )
 
+data class SystemCalendarEvent(
+    val id: Long,
+    val title: String,
+    val description: String,
+    val startTime: Long,
+    val endTime: Long,
+    val calendarName: String
+)
+
 class CalendarSyncHelper(private val context: Context) {
 
     fun getAvailableCalendars(): List<CalendarAccount> {
@@ -35,6 +44,40 @@ class CalendarSyncHelper(private val context: Context) {
             }
         }
         return calendars
+    }
+
+    fun readEvents(startTime: Long, endTime: Long): List<SystemCalendarEvent> {
+        val events = mutableListOf<SystemCalendarEvent>()
+        val projection = arrayOf(
+            CalendarContract.Events._ID,
+            CalendarContract.Events.TITLE,
+            CalendarContract.Events.DESCRIPTION,
+            CalendarContract.Events.DTSTART,
+            CalendarContract.Events.DTEND,
+            CalendarContract.Events.CALENDAR_DISPLAY_NAME
+        )
+        val selection = "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTEND} <= ?"
+        val selectionArgs = arrayOf(startTime.toString(), endTime.toString())
+        val cursor = context.contentResolver.query(
+            CalendarContract.Events.CONTENT_URI,
+            projection, selection, selectionArgs,
+            "${CalendarContract.Events.DTSTART} ASC"
+        )
+        cursor?.use {
+            while (it.moveToNext()) {
+                events.add(
+                    SystemCalendarEvent(
+                        id = it.getLong(0),
+                        title = it.getString(1) ?: "",
+                        description = it.getString(2) ?: "",
+                        startTime = it.getLong(3),
+                        endTime = it.getLong(4),
+                        calendarName = it.getString(5) ?: ""
+                    )
+                )
+            }
+        }
+        return events
     }
 
     fun writeEvent(
