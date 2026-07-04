@@ -28,9 +28,9 @@ import androidx.compose.ui.unit.dp
 import java.util.Calendar
 
 data class DayInfo(
-    val timestamp: Long,      // start-of-day millis
-    val dayLabel: String,     // "一", "二", ..., "日"
-    val dateNumber: Int,      // 1-31
+    val timestamp: Long,
+    val dayLabel: String,
+    val dateNumber: Int,
     val hasEvents: Boolean,
     val isToday: Boolean
 )
@@ -43,26 +43,20 @@ fun MiniWeekStrip(
 ) {
     LazyRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         itemsIndexed(weekDays) { _, day ->
-            MiniDayCell(
-                day = day,
-                onClick = { onDayClick(day.timestamp) }
-            )
+            MiniDayCell(day = day, onClick = { onDayClick(day.timestamp) })
         }
     }
 }
 
 @Composable
-private fun MiniDayCell(
-    day: DayInfo,
-    onClick: () -> Unit
-) {
+private fun MiniDayCell(day: DayInfo, onClick: () -> Unit) {
     val bgColor = if (day.isToday)
-        MaterialTheme.colorScheme.primaryContainer
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
     else
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        MaterialTheme.colorScheme.surface
 
     val textColor = if (day.isToday)
         MaterialTheme.colorScheme.onPrimaryContainer
@@ -71,65 +65,58 @@ private fun MiniDayCell(
 
     Card(
         modifier = Modifier
-            .width(48.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .width(44.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (day.isToday) 1.dp else 0.dp)
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 10.dp),
+            modifier = Modifier.padding(vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = day.dayLabel,
                 style = MaterialTheme.typography.labelSmall,
-                color = textColor.copy(alpha = 0.7f)
+                color = textColor.copy(alpha = 0.6f)
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = "${day.dateNumber}",
                 style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Medium
+                    fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Normal
                 ),
                 color = textColor,
                 textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(6.dp))
-            // Dot indicator
+            Spacer(Modifier.height(4.dp))
             Box(
                 modifier = Modifier
-                    .size(5.dp)
+                    .size(4.dp)
                     .clip(CircleShape)
                     .background(
-                        if (day.hasEvents)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        if (day.hasEvents) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                     )
             )
         }
     }
 }
 
-/** Build list of 7 DayInfo entries starting from today. */
 fun buildWeekDays(eventDates: Set<Long>): List<DayInfo> {
     val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
-    val today = Calendar.getInstance()
     val result = mutableListOf<DayInfo>()
 
     for (i in 0 until 7) {
         val cal = Calendar.getInstance().apply {
             add(Calendar.DAY_OF_MONTH, i)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
         val ts = cal.timeInMillis
-        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK) // 1=Sun..7=Sat
-        val labelIndex = if (dayOfWeek == 1) 6 else dayOfWeek - 2 // map to Mon=0..Sun=6
+        val dow = cal.get(Calendar.DAY_OF_WEEK)
+        val labelIndex = if (dow == 1) 6 else dow - 2
         result.add(
             DayInfo(
                 timestamp = ts,

@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -23,34 +21,25 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun QuickActionChip(
-    onNewNote: () -> Unit,
     onNewTodo: () -> Unit,
     onNewSchedule: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ActionChip(
-            label = "新笔记",
-            icon = Icons.Default.Description,
-            onClick = onNewNote,
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
         ActionChip(
             label = "新待办",
             icon = Icons.Default.Checklist,
             onClick = onNewTodo,
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
         )
         ActionChip(
             label = "新日程",
             icon = Icons.Default.Event,
             onClick = onNewSchedule,
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
         )
     }
 }
@@ -64,20 +53,12 @@ private fun ActionChip(
 ) {
     AssistChip(
         onClick = onClick,
-        label = {
-            Text(label, style = MaterialTheme.typography.labelLarge)
-        },
+        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
         leadingIcon = {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
         },
         shape = RoundedCornerShape(14.dp),
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = containerColor
-        ),
+        colors = AssistChipDefaults.assistChipColors(containerColor = containerColor),
         border = null
     )
 }

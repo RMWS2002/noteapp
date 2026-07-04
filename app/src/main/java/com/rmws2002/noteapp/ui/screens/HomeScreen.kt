@@ -5,7 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,13 +36,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.rmws2002.noteapp.data.entity.NoteEntity
 import com.rmws2002.noteapp.ui.components.DailyQuote
 import com.rmws2002.noteapp.ui.components.GreetingHeader
 import com.rmws2002.noteapp.ui.components.MiniWeekStrip
-import com.rmws2002.noteapp.ui.components.NoteCard
-import com.rmws2002.noteapp.ui.components.OverviewCard
 import com.rmws2002.noteapp.ui.components.QuickActionChip
+import com.rmws2002.noteapp.ui.components.StatsRow
 import com.rmws2002.noteapp.ui.components.TodoRow
 import com.rmws2002.noteapp.ui.components.buildWeekDays
 import com.rmws2002.noteapp.ui.util.formatTime
@@ -51,125 +49,94 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
-    onNavigateToNotes: () -> Unit = {},
     onNavigateToTodos: () -> Unit = {},
     onNavigateToSchedule: () -> Unit = {},
-    onNoteClick: (Long) -> Unit,
     onTodoClick: (Long) -> Unit,
-    onNewNote: () -> Unit = {},
     onNewTodo: () -> Unit = {},
     onNewSchedule: () -> Unit = {},
+    onDayClick: (Long) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
-    val recentNotes by viewModel.recentNotes.collectAsState()
     val activeTodos by viewModel.activeTodos.collectAsState()
     val todaySchedules by viewModel.todaySchedules.collectAsState()
     val completedTodoCount by viewModel.completedTodoCount.collectAsState()
     val weekEventDates by viewModel.weekEventDates.collectAsState()
-
     val weekDays = remember(weekEventDates) { buildWeekDays(weekEventDates) }
 
-    // Staggered reveal: 1=greeting, 2=quote, 3=weekstrip, 4=overview, 5=actions, 6=schedule, 7=todos, 8=notes
+    // Staggered reveal: 1=greeting+quote, 2=week+stats, 3=actions, 4=schedule, 5=todos
     var revealStep by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
-        revealStep = 1; delay(100)
-        revealStep = 2; delay(120)
-        revealStep = 3; delay(100)
-        revealStep = 4; delay(120)
-        revealStep = 5; delay(100)
-        revealStep = 6; delay(120)
-        revealStep = 7; delay(100)
-        revealStep = 8
+        revealStep = 1; delay(80)
+        revealStep = 2; delay(80)
+        revealStep = 3; delay(80)
+        revealStep = 4; delay(80)
+        revealStep = 5
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
     ) {
-        // 1. Greeting header
+        // 1. Greeting + Quote group
         item(key = "greeting") {
             AnimatedVisibility(
                 visible = revealStep >= 1,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
             ) {
-                GreetingHeader(
-                    todoCount = activeTodos.size,
-                    scheduleCount = todaySchedules.size
-                )
+                GreetingHeader()
+                Spacer(Modifier.height(10.dp))
+                DailyQuote()
             }
         }
 
-        // 2. Daily quote
-        item(key = "quote") {
+        // 2. Mini week strip + Stats row
+        item(key = "week_stats") {
             AnimatedVisibility(
                 visible = revealStep >= 2,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
             ) {
-                DailyQuote(modifier = Modifier.padding(top = 4.dp))
+                Column {
+                    Spacer(Modifier.height(14.dp))
+                    MiniWeekStrip(weekDays = weekDays, onDayClick = onDayClick)
+                    Spacer(Modifier.height(14.dp))
+                    StatsRow(
+                        activeTodoCount = activeTodos.size,
+                        completedTodoCount = completedTodoCount,
+                        scheduleCount = todaySchedules.size,
+                        onTodoClick = onNavigateToTodos,
+                        onScheduleClick = onNavigateToSchedule
+                    )
+                }
             }
         }
 
-        // 3. Mini week strip
-        item(key = "week_strip") {
-            AnimatedVisibility(
-                visible = revealStep >= 3,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
-            ) {
-                MiniWeekStrip(
-                    weekDays = weekDays,
-                    onDayClick = { /* scroll to that day in schedule tab */ },
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-        }
-
-        // 4. Overview card
-        item(key = "overview") {
-            AnimatedVisibility(
-                visible = revealStep >= 4,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
-            ) {
-                OverviewCard(
-                    activeTodoCount = activeTodos.size,
-                    completedTodoCount = completedTodoCount,
-                    scheduleCount = todaySchedules.size,
-                    noteCount = recentNotes.size,
-                    onTodoClick = onNavigateToTodos,
-                    onScheduleClick = onNavigateToSchedule,
-                    onNoteClick = onNavigateToNotes,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-        }
-
-        // 5. Quick actions
+        // 3. Quick actions
         item(key = "quick_actions") {
             AnimatedVisibility(
-                visible = revealStep >= 5,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                visible = revealStep >= 3,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
             ) {
                 QuickActionChip(
-                    onNewNote = onNewNote,
                     onNewTodo = onNewTodo,
                     onNewSchedule = onNewSchedule
                 )
             }
         }
 
-        // 6. Today's schedule (compact horizontal cards)
+        // 4. Today's schedule
         if (todaySchedules.isNotEmpty()) {
             item(key = "schedule_header") {
                 AnimatedVisibility(
-                    visible = revealStep >= 6,
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                    visible = revealStep >= 4,
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
                 ) {
                     SectionHeader("今日日程", onViewAll = onNavigateToSchedule)
                 }
             }
             item(key = "schedule_list") {
                 AnimatedVisibility(
-                    visible = revealStep >= 6,
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                    visible = revealStep >= 4,
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
                 ) {
                     androidx.compose.foundation.lazy.LazyRow(
                         contentPadding = PaddingValues(vertical = 4.dp),
@@ -180,7 +147,7 @@ fun HomeScreen(
                                 title = schedule.title,
                                 startTime = schedule.startTime,
                                 endTime = schedule.endTime,
-                                onClick = { /* navigate to schedule detail */ }
+                                onClick = {}
                             )
                         }
                     }
@@ -188,11 +155,11 @@ fun HomeScreen(
             }
         }
 
-        // 7. Active todos
+        // 5. Active todos
         item(key = "todo_header") {
             AnimatedVisibility(
-                visible = revealStep >= 7,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                visible = revealStep >= 5,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
             ) {
                 SectionHeader("待办事项", onViewAll = onNavigateToTodos)
             }
@@ -200,17 +167,17 @@ fun HomeScreen(
         if (activeTodos.isEmpty()) {
             item(key = "todo_empty") {
                 AnimatedVisibility(
-                    visible = revealStep >= 7,
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                    visible = revealStep >= 5,
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
                 ) {
-                    EmptyHint("没有待办事项 ✨")
+                    EmptyHint("没有待办事项")
                 }
             }
         } else {
             items(activeTodos.take(5), key = { it.id }) { todo ->
                 AnimatedVisibility(
-                    visible = revealStep >= 7,
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                    visible = revealStep >= 5,
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 })
                 ) {
                     TodoRow(
                         todo = todo,
@@ -222,57 +189,6 @@ fun HomeScreen(
             }
         }
 
-        // 8. Recent notes
-        item(key = "notes_header") {
-            AnimatedVisibility(
-                visible = revealStep >= 8,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
-            ) {
-                SectionHeader("最近笔记", onViewAll = onNavigateToNotes)
-            }
-        }
-        if (recentNotes.isEmpty()) {
-            item(key = "notes_empty") {
-                AnimatedVisibility(
-                    visible = revealStep >= 8,
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
-                ) {
-                    EmptyHint("没有笔记 📝")
-                }
-            }
-        } else {
-            // 2-column grid using Row pairs
-            val notesChunks = recentNotes.take(6).chunked(2)
-            items(notesChunks, key = { it.firstOrNull()?.id ?: 0L }) { pair ->
-                AnimatedVisibility(
-                    visible = revealStep >= 8,
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        pair.getOrNull(0)?.let { note ->
-                            NoteCard(
-                                note = note,
-                                onClick = { onNoteClick(note.id) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        pair.getOrNull(1)?.let { note ->
-                            NoteCard(
-                                note = note,
-                                onClick = { onNoteClick(note.id) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        } ?: Spacer(Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-
         item { Spacer(Modifier.height(80.dp)) }
     }
 }
@@ -280,16 +196,11 @@ fun HomeScreen(
 @Composable
 fun SectionHeader(title: String, onViewAll: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium
-        )
+        Text(text = title, style = MaterialTheme.typography.titleMedium)
         TextButton(onClick = onViewAll) {
             Text("查看全部", style = MaterialTheme.typography.labelLarge)
         }
@@ -308,44 +219,30 @@ fun EmptyHint(text: String) {
 
 @Composable
 private fun CompactScheduleCard(
-    title: String,
-    startTime: Long,
-    endTime: Long,
-    onClick: () -> Unit
+    title: String, startTime: Long, endTime: Long, onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .width(220.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-        ),
+        modifier = Modifier.width(200.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Time column
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = formatTime(startTime),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             HorizontalDivider(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(28.dp)
-                    .padding(horizontal = 10.dp),
+                modifier = Modifier.width(1.dp).height(24.dp).padding(horizontal = 8.dp),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
         }
     }

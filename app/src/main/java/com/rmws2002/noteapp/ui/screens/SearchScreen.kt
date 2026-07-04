@@ -18,18 +18,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.rmws2002.noteapp.ui.components.NoteCard
 import com.rmws2002.noteapp.ui.components.TodoRow
 import com.rmws2002.noteapp.viewmodel.SearchViewModel
 
 @Composable
 fun SearchScreen(
-    onNoteClick: (Long) -> Unit,
     onTodoClick: (Long) -> Unit,
     viewModel: SearchViewModel = viewModel()
 ) {
     val query by viewModel.query.collectAsState()
-    val noteResults by viewModel.noteResults.collectAsState()
     val todoResults by viewModel.todoResults.collectAsState()
 
     LazyColumn(
@@ -40,7 +37,7 @@ fun SearchScreen(
             OutlinedTextField(
                 value = query,
                 onValueChange = { viewModel.search(it) },
-                placeholder = { Text("搜索笔记或待办...") },
+                placeholder = { Text("搜索待办...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -48,19 +45,6 @@ fun SearchScreen(
         }
 
         if (query.isNotBlank()) {
-            if (noteResults.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "笔记",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                    )
-                }
-                items(noteResults) { note ->
-                    NoteCard(note = note, onClick = { onNoteClick(note.id) },
-                        modifier = Modifier.padding(vertical = 4.dp))
-                }
-            }
             if (todoResults.isNotEmpty()) {
                 item {
                     Text(
@@ -70,10 +54,11 @@ fun SearchScreen(
                     )
                 }
                 items(todoResults) { todo ->
-                    TodoRow(todo = todo, onToggle = { }, onClick = { onTodoClick(todo.id) })
+                    TodoRow(todo = todo, onToggle = {}, onClick = { onTodoClick(todo.id) },
+                        modifier = Modifier.padding(vertical = 3.dp))
                 }
             }
-            if (noteResults.isEmpty() && todoResults.isEmpty()) {
+            if (todoResults.isEmpty()) {
                 item { EmptyHint("没有找到结果") }
             }
         }

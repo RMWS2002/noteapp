@@ -9,22 +9,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Checklist
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -55,28 +53,26 @@ import androidx.compose.ui.unit.dp
 import com.rmws2002.noteapp.NoteApp
 import com.rmws2002.noteapp.ui.screens.CompletedTodosContent
 import com.rmws2002.noteapp.ui.screens.HomeScreen
-import com.rmws2002.noteapp.ui.screens.NoteEditScreen
-import com.rmws2002.noteapp.ui.screens.NoteListScreen
 import com.rmws2002.noteapp.ui.screens.ScheduleEditScreen
 import com.rmws2002.noteapp.ui.screens.ScheduleScreen
 import com.rmws2002.noteapp.ui.screens.SearchScreen
 import com.rmws2002.noteapp.ui.screens.SettingsScreen
 import com.rmws2002.noteapp.ui.screens.TodoEditScreen
 import com.rmws2002.noteapp.ui.screens.TodoListScreen
+import kotlinx.coroutines.launch
 
-private val tabLabels = listOf("首页", "笔记", "待办", "日程", "搜索")
+private val tabLabels = listOf("首页", "待办", "日程", "搜索")
 private val tabOutlined = listOf(
-    Icons.Outlined.Home, Icons.Outlined.Description,
-    Icons.Outlined.Checklist, Icons.Outlined.CalendarMonth, Icons.Outlined.Search
+    Icons.Outlined.Home, Icons.Outlined.Checklist,
+    Icons.Outlined.CalendarMonth, Icons.Outlined.Search
 )
 private val tabFilled = listOf(
-    Icons.Filled.Home, Icons.Filled.Description,
-    Icons.Filled.Checklist, Icons.Filled.CalendarMonth, Icons.Filled.Search
+    Icons.Filled.Home, Icons.Filled.Checklist,
+    Icons.Filled.CalendarMonth, Icons.Filled.Search
 )
 
 sealed class Overlay {
     data object None : Overlay()
-    data class NoteEdit(val id: Long?) : Overlay()
     data class TodoEdit(val id: Long?) : Overlay()
     data object ScheduleEdit : Overlay()
     data object Settings : Overlay()
@@ -88,25 +84,25 @@ fun NoteAppNavGraph() {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
     var showCompletedSheet by remember { mutableStateOf(false) }
-    val pager = rememberPagerState(pageCount = { 5 })
+    val pager = rememberPagerState(pageCount = { 4 })
+    val scope = rememberCoroutineScope()
 
-    // Completed todo count for badge
+    // Completed todo count — used only for filled vs outlined icon
     val context = LocalContext.current
     val app = context.applicationContext as NoteApp
     val completedCount by app.todoRepository.getCompletedTodos()
         .collectAsState(initial = emptyList())
+    val hasCompleted = completedCount.isNotEmpty()
 
+    // Sync pager → tabIndex on user swipe (no race: scrollToPage is instant, no intermediate emissions)
     LaunchedEffect(pager) {
         snapshotFlow { pager.currentPage }.collect { tabIndex = it }
-    }
-    LaunchedEffect(tabIndex) {
-        pager.animateScrollToPage(tabIndex)
     }
 
     val showTitle = tabIndex != 0
     val showBars = overlay is Overlay.None
 
-    // ── BackHandler: intercept back when any overlay is visible ──
+    // BackHandler: intercept system back when overlay or sheet is visible
     BackHandler(enabled = overlay !is Overlay.None || showCompletedSheet) {
         when {
             showCompletedSheet -> showCompletedSheet = false
@@ -116,41 +112,18 @@ fun NoteAppNavGraph() {
 
     val topBar: @Composable () -> Unit = if (showBars && showTitle) {{
         TopAppBar(
-            title = { Text(tabLabels[tabIndex]) },
+            title = { Text(tabLabels[tabIndex], style = MaterialTheme.typography.titleLarge) },
             actions = {
-                // Completed todos button (✓ icon with badge)
-                if (completedCount.isNotEmpty()) {
-                    IconButton(onClick = { showCompletedSheet = true }) {
-                        BadgedBox(
-                            badge = {
-                                Badge(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ) {
-                                    Text(
-                                        "${completedCount.size}",
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-                            }
-                        ) {
-                            Icon(
-                                Icons.Filled.CheckCircle,
-                                contentDescription = "已完成",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    IconButton(onClick = { showCompletedSheet = true }) {
-                        Icon(
-                            Icons.Outlined.CheckCircle,
-                            contentDescription = "已完成",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
-                    }
+                // Completed todos button — filled vs outlined, NO badge number
+                IconButton(onClick = { showCompletedSheet = true }) {
+                    Icon(
+                        if (hasCompleted) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                        contentDescription = "已完成",
+                        tint = if (hasCompleted) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
                 }
-                // Settings button
+                // Settings
                 IconButton(onClick = { overlay = Overlay.Settings }) {
                     Icon(
                         Icons.Filled.Settings,
@@ -177,16 +150,20 @@ fun NoteAppNavGraph() {
                     icon = {
                         Icon(
                             if (sel) tabFilled[i] else tabOutlined[i],
-                            contentDescription = label
+                            contentDescription = label,
+                            modifier = Modifier.padding(4.dp)
                         )
                     },
-                    label = { Text(label) },
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     selected = sel,
-                    onClick = { tabIndex = i },
+                    onClick = {
+                        tabIndex = i
+                        scope.launch { pager.scrollToPage(i) }
+                    },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.primary,
                         selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
                     )
                 )
             }
@@ -207,25 +184,24 @@ fun NoteAppNavGraph() {
                     Box(Modifier.fillMaxSize()) {
                         when (page) {
                             0 -> HomeScreen(
-                                onNoteClick = { overlay = Overlay.NoteEdit(it) },
+                                onNavigateToTodos = { tabIndex = 1; scope.launch { pager.scrollToPage(1) } },
+                                onNavigateToSchedule = { tabIndex = 2; scope.launch { pager.scrollToPage(2) } },
                                 onTodoClick = { overlay = Overlay.TodoEdit(it) },
-                                onNewNote = { overlay = Overlay.NoteEdit(null) },
                                 onNewTodo = { overlay = Overlay.TodoEdit(null) },
-                                onNewSchedule = { overlay = Overlay.ScheduleEdit }
+                                onNewSchedule = { overlay = Overlay.ScheduleEdit },
+                                onDayClick = { dayTs ->
+                                    tabIndex = 2
+                                    scope.launch { pager.scrollToPage(2) }
+                                }
                             )
-                            1 -> NoteListScreen(
-                                onAddNote = { overlay = Overlay.NoteEdit(null) },
-                                onNoteClick = { overlay = Overlay.NoteEdit(it) }
-                            )
-                            2 -> TodoListScreen(
+                            1 -> TodoListScreen(
                                 onAddTodo = { overlay = Overlay.TodoEdit(null) },
                                 onTodoClick = { overlay = Overlay.TodoEdit(it) }
                             )
-                            3 -> ScheduleScreen(
+                            2 -> ScheduleScreen(
                                 onAddSchedule = { overlay = Overlay.ScheduleEdit }
                             )
-                            4 -> SearchScreen(
-                                onNoteClick = { overlay = Overlay.NoteEdit(it) },
+                            3 -> SearchScreen(
                                 onTodoClick = { overlay = Overlay.TodoEdit(it) }
                             )
                         }
@@ -233,19 +209,7 @@ fun NoteAppNavGraph() {
                 }
             }
 
-            // Overlay screens
-            AnimatedVisibility(
-                visible = overlay is Overlay.NoteEdit,
-                enter = slideInHorizontally(initialOffsetX = { it }),
-                exit = slideOutHorizontally(targetOffsetX = { it })
-            ) {
-                if (overlay is Overlay.NoteEdit) {
-                    NoteEditScreen(
-                        noteId = (overlay as Overlay.NoteEdit).id,
-                        onBack = { overlay = Overlay.None }
-                    )
-                }
-            }
+            // Overlay: TodoEdit
             AnimatedVisibility(
                 visible = overlay is Overlay.TodoEdit,
                 enter = slideInHorizontally(initialOffsetX = { it }),
@@ -258,6 +222,7 @@ fun NoteAppNavGraph() {
                     )
                 }
             }
+            // Overlay: ScheduleEdit
             AnimatedVisibility(
                 visible = overlay is Overlay.ScheduleEdit,
                 enter = slideInHorizontally(initialOffsetX = { it }),
@@ -267,6 +232,7 @@ fun NoteAppNavGraph() {
                     ScheduleEditScreen(onBack = { overlay = Overlay.None })
                 }
             }
+            // Overlay: Settings
             AnimatedVisibility(
                 visible = overlay is Overlay.Settings,
                 enter = slideInHorizontally(initialOffsetX = { it }),
@@ -279,13 +245,13 @@ fun NoteAppNavGraph() {
         }
     }
 
-    // ── Completed Todos BottomSheet ──
+    // Completed todos BottomSheet
     if (showCompletedSheet) {
         ModalBottomSheet(
             onDismissRequest = { showCompletedSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
             CompletedTodosContent(onBack = { showCompletedSheet = false })
         }

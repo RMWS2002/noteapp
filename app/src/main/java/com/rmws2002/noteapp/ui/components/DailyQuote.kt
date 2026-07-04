@@ -1,22 +1,19 @@
 package com.rmws2002.noteapp.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
@@ -54,30 +51,13 @@ private val quotes = listOf(
     Quote("但愿人长久，千里共婵娟。", "苏轼"),
     Quote("人生如逆旅，我亦是行人。", "苏轼"),
     Quote("粗缯大布裹生涯，腹有诗书气自华。", "苏轼"),
+    Quote("此心安处是吾乡。", "苏轼"),
     Quote("天行健，君子以自强不息。", "《周易》"),
     Quote("地势坤，君子以厚德载物。", "《周易》"),
     Quote("穷则变，变则通，通则久。", "《周易》"),
     Quote("日日行，不怕千万里；常常做，不怕千万事。", "金缨"),
     Quote("有志者，事竟成，破釜沉舟，百二秦关终属楚。", "蒲松龄"),
     Quote("苦心人，天不负，卧薪尝胆，三千越甲可吞吴。", "蒲松龄"),
-    Quote("一个人的价值，应该看他贡献什么，而不应当看他取得什么。", "爱因斯坦"),
-    Quote("生活就像骑自行车，要想保持平衡就得不断前进。", "爱因斯坦"),
-    Quote("想象力比知识更重要。", "爱因斯坦"),
-    Quote("天才是百分之一的灵感加上百分之九十九的汗水。", "爱迪生"),
-    Quote("Stay hungry, stay foolish.", "Steve Jobs"),
-    Quote("The only way to do great work is to love what you do.", "Steve Jobs"),
-    Quote("Simplicity is the ultimate sophistication.", "Leonardo da Vinci"),
-    Quote("简单是复杂的最高境界。", "达·芬奇"),
-    Quote("我们听过无数的道理，却仍旧过不好这一生。", "韩寒"),
-    Quote("世界上只有一种真正的英雄主义，那就是认清生活真相后依然热爱生活。", "罗曼·罗兰"),
-    Quote("人生最大的荣耀，不在于从不失败，而在于每次跌倒都能重新站起。", "曼德拉"),
-    Quote("要么你主宰生活，要么你被生活主宰。", "吉姆·罗恩"),
-    Quote("高效能人士的七个习惯：积极主动、以终为始、要事第一。", "史蒂芬·柯维"),
-    Quote("未雨绸缪，事半功倍。", "谚语"),
-    Quote("工欲善其事，必先利其器。", "孔子"),
-    Quote("三人行，必有我师焉。择其善者而从之，其不善者而改之。", "孔子"),
-    Quote("温故而知新，可以为师矣。", "孔子"),
-    Quote("知之为知之，不知为不知，是知也。", "孔子"),
     Quote("吾生也有涯，而知也无涯。", "庄子"),
     Quote("博学之，审问之，慎思之，明辨之，笃行之。", "《中庸》"),
     Quote("玉不琢，不成器；人不学，不知道。", "《礼记》"),
@@ -85,70 +65,68 @@ private val quotes = listOf(
     Quote("合抱之木，生于毫末；九层之台，起于累土。", "老子"),
     Quote("大音希声，大象无形。", "老子"),
     Quote("上善若水，水善利万物而不争。", "老子"),
+    Quote("锲而舍之，朽木不折；锲而不舍，金石可镂。", "荀子"),
+    Quote("骐骥一跃，不能十步；驽马十驾，功在不舍。", "荀子"),
+    Quote("积土成山，风雨兴焉；积水成渊，蛟龙生焉。", "荀子"),
+    Quote("三人行，必有我师焉。择其善者而从之，其不善者而改之。", "孔子"),
+    Quote("温故而知新，可以为师矣。", "孔子"),
+    Quote("知之为知之，不知为不知，是知也。", "孔子"),
+    Quote("工欲善其事，必先利其器。", "孔子"),
+    Quote("己所不欲，勿施于人。", "孔子"),
     Quote("岁月本长，而忙者自促。", "《菜根谭》"),
     Quote("宠辱不惊，看庭前花开花落；去留无意，望天上云卷云舒。", "《菜根谭》"),
-    Quote("此心安处是吾乡。", "苏轼"),
-    Quote("当你为错过太阳而哭泣的时候，你也要再错过群星了。", "泰戈尔"),
-    Quote("世界上最宽阔的是海洋，比海洋更宽阔的是天空，比天空更宽阔的是人的心灵。", "雨果"),
-    Quote("今天应做的事没有做，明天再早也是耽误了。", "裴斯泰洛齐"),
-    Quote("做你自己，因为别人都有人做了。", "王尔德"),
-    Quote("你热爱生命吗？那么别浪费时间，因为时间是组成生命的材料。", "富兰克林"),
-    Quote("早起的鸟儿有虫吃。", "谚语"),
-    Quote("积土成山，风雨兴焉；积水成渊，蛟龙生焉。", "荀子"),
-    Quote("骐骥一跃，不能十步；驽马十驾，功在不舍。", "荀子"),
-    Quote("锲而舍之，朽木不折；锲而不舍，金石可镂。", "荀子"),
+    Quote("世事洞明皆学问，人情练达即文章。", "曹雪芹"),
+    Quote("满纸荒唐言，一把辛酸泪。都云作者痴，谁解其中味？", "曹雪芹"),
+    Quote("山不在高，有仙则名。水不在深，有龙则灵。", "刘禹锡"),
+    Quote("沉舟侧畔千帆过，病树前头万木春。", "刘禹锡"),
+    Quote("先天下之忧而忧，后天下之乐而乐。", "范仲淹"),
+    Quote("醉翁之意不在酒，在乎山水之间也。", "欧阳修"),
+    Quote("出淤泥而不染，濯清涟而不妖。", "周敦颐"),
+    Quote("一言既出，驷马难追。", "《论语》"),
+    Quote("学而时习之，不亦说乎？", "孔子"),
+    Quote("道生一，一生二，二生三，三生万物。", "老子"),
+    Quote("桃李不言，下自成蹊。", "司马迁"),
+    Quote("燕雀安知鸿鹄之志哉？", "陈涉"),
+    Quote("大器晚成，大音希声。", "老子"),
+    Quote("海阔凭鱼跃，天高任鸟飞。", "佚名"),
+    Quote("一寸光阴一寸金，寸金难买寸光阴。", "谚语"),
+    Quote("近朱者赤，近墨者黑。", "傅玄"),
+    Quote("读万卷书，行万里路。", "董其昌"),
+    Quote("十年磨一剑，霜刃未曾试。", "贾岛"),
+    Quote("春蚕到死丝方尽，蜡炬成灰泪始干。", "李商隐"),
 )
 
-/**
- * Picks a daily quote based on the day of the year.
- * Same quote all day, rotates every midnight.
- */
 fun getDailyQuote(): Quote {
     val dayOfYear = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
     return quotes[dayOfYear % quotes.size]
 }
 
 @Composable
-fun DailyQuote(
-    modifier: Modifier = Modifier
-) {
+fun DailyQuote(modifier: Modifier = Modifier) {
     val quote = remember { getDailyQuote() }
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Left accent bar (blockquote style)
+    Column(modifier = modifier.fillMaxWidth()) {
+        // Quote text with subtle left accent
+        androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth()) {
             Spacer(
                 modifier = Modifier
                     .width(3.dp)
-                    .height(48.dp)
+                    .height(36.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                    )
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "“${quote.text}”",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontStyle = FontStyle.Normal
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                    text = quote.text,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Normal),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = "— ${quote.author}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.align(Alignment.End)
                 )
             }

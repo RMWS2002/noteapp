@@ -58,7 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rmws2002.noteapp.data.entity.TodoEntity
-import com.rmws2002.noteapp.ui.components.parseColor
+import com.rmws2002.noteapp.ui.util.parseColor
 import com.rmws2002.noteapp.viewmodel.TodoViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar

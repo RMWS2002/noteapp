@@ -51,7 +51,7 @@ import com.rmws2002.noteapp.NoteApp
 import com.rmws2002.noteapp.data.calendar.CalendarAccount
 import com.rmws2002.noteapp.data.entity.TagEntity
 import com.rmws2002.noteapp.data.preferences.ThemeMode
-import com.rmws2002.noteapp.ui.components.parseColor
+import com.rmws2002.noteapp.ui.util.parseColor
 import com.rmws2002.noteapp.util.NotificationHelper
 import kotlinx.coroutines.launch
 
