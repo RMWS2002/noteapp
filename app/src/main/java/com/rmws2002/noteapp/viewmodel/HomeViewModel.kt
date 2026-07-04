@@ -9,6 +9,7 @@ import com.rmws2002.noteapp.data.entity.TodoEntity
 import com.rmws2002.noteapp.data.entity.ScheduleEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -29,9 +30,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         getEndOfDay()
     ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val completedTodoCount: StateFlow<Int> = todoRepo.getCompletedTodos()
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     fun toggleTodo(todo: TodoEntity) {
         viewModelScope.launch {
-            todoRepo.update(todo.copy(isCompleted = !todo.isCompleted))
+            val now = System.currentTimeMillis()
+            val updated = if (todo.isCompleted) {
+                todo.copy(isCompleted = false, completedAt = null)
+            } else {
+                todo.copy(isCompleted = true, completedAt = now)
+            }
+            todoRepo.update(updated)
         }
     }
 

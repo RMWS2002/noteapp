@@ -1,6 +1,7 @@
 package com.rmws2002.noteapp.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,14 +9,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -244,41 +249,69 @@ fun NoteEditScreen(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(16.dp))
 
-            // Content - borderless, large text area
-            TextField(
-                value = content,
-                onValueChange = { content = it; hasChanges = true },
-                placeholder = {
-                    Text("写下你的想法...",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
-                    )
-                },
-                textStyle = MaterialTheme.typography.bodyLarge,
+            // Content area with subtle background
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false),
-                minLines = 10,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    .padding(4.dp)
+            ) {
+                TextField(
+                    value = content,
+                    onValueChange = { content = it; hasChanges = true },
+                    placeholder = {
+                        Text("写下你的想法...",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
+                        )
+                    },
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false),
+                    minLines = 10,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
                 )
-            )
+                // Character count
+                if (content.isNotEmpty()) {
+                    Text(
+                        text = "${content.length} 字",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .padding(end = 12.dp, bottom = 8.dp)
+                    )
+                }
+            }
 
             Spacer(Modifier.height(24.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(8.dp))
 
-            // Footer - creation/update time
-            Text(
-                text = if (isEditing) "创建于 ${dateTimeFormat.format(Date(createdAt.value))}"
-                       else dateTimeFormat.format(Date(System.currentTimeMillis())),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Footer with clock icon
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = if (isEditing) "创建于 ${dateTimeFormat.format(Date(createdAt.value))}"
+                           else dateTimeFormat.format(Date(System.currentTimeMillis())),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             if (isEditing) {
                 Spacer(Modifier.height(16.dp))

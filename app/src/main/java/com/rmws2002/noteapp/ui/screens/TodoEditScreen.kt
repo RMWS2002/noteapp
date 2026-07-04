@@ -1,6 +1,7 @@
 package com.rmws2002.noteapp.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -283,6 +284,57 @@ fun TodoEditScreen(
             Spacer(Modifier.height(24.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(16.dp))
+
+            // ---- QUICK DATE PRESETS ----
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val now = System.currentTimeMillis()
+                val todayStart = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                val tomorrowStart = Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                val nextWeekStart = Calendar.getInstance().apply {
+                    add(Calendar.WEEK_OF_YEAR, 1)
+                    set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                    set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+
+                val presets = listOf(
+                    "今天" to todayStart,
+                    "明天" to tomorrowStart,
+                    "下周" to nextWeekStart
+                )
+                presets.forEach { (label, time) ->
+                    val isActive = dueDate != null && dueDate == time
+                    FilterChip(
+                        selected = isActive,
+                        onClick = {
+                            dueDate = time
+                            hasChanges = true
+                        },
+                        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                }
+                // Custom date picker chip
+                FilterChip(
+                    selected = dueDate != null && dueDate !in presets.map { it.second },
+                    onClick = { showDatePicker = true },
+                    label = { Text("选日期", style = MaterialTheme.typography.labelMedium) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            }
 
             // ---- DUE DATE ROW ----
             SettingRow(

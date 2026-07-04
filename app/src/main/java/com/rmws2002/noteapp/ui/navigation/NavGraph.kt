@@ -6,20 +6,25 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +48,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.rmws2002.noteapp.NoteApp
+import com.rmws2002.noteapp.ui.screens.CompletedTodosScreen
 import com.rmws2002.noteapp.ui.screens.HomeScreen
 import com.rmws2002.noteapp.ui.screens.NoteEditScreen
 import com.rmws2002.noteapp.ui.screens.NoteListScreen
@@ -69,6 +78,7 @@ sealed class Overlay {
     data class TodoEdit(val id: Long?) : Overlay()
     data object ScheduleEdit : Overlay()
     data object Settings : Overlay()
+    data object CompletedTodos : Overlay()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,6 +87,12 @@ fun NoteAppNavGraph() {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
     val pager = rememberPagerState(pageCount = { 5 })
+
+    // Completed todo count for badge
+    val context = LocalContext.current
+    val app = context.applicationContext as NoteApp
+    val completedCount by app.todoRepository.getCompletedTodos()
+        .collectAsState(initial = emptyList())
 
     LaunchedEffect(pager) {
         snapshotFlow { pager.currentPage }.collect { tabIndex = it }
@@ -92,9 +108,45 @@ fun NoteAppNavGraph() {
         TopAppBar(
             title = { Text(tabLabels[tabIndex]) },
             actions = {
+                // Completed todos button (✓ icon with badge)
+                if (completedCount.isNotEmpty()) {
+                    IconButton(onClick = { overlay = Overlay.CompletedTodos }) {
+                        BadgedBox(
+                            badge = {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ) {
+                                    Text(
+                                        "${completedCount.size}",
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = "已完成",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    IconButton(onClick = { overlay = Overlay.CompletedTodos }) {
+                        Icon(
+                            Icons.Outlined.CheckCircle,
+                            contentDescription = "已完成",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                    }
+                }
+                // Settings button
                 IconButton(onClick = { overlay = Overlay.Settings }) {
-                    Icon(Icons.Filled.Settings, "设置",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(
+                        Icons.Filled.Settings,
+                        contentDescription = "设置",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -136,13 +188,12 @@ fun NoteAppNavGraph() {
         bottomBar = bar
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
-            // Pager fills available space, respecting Scaffold insets
             if (overlay is Overlay.None) {
                 HorizontalPager(
                     state = pager,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 1
                 ) { page ->
-                    // Each page fills its slot
                     Box(Modifier.fillMaxSize()) {
                         when (page) {
                             0 -> HomeScreen(
@@ -172,14 +223,17 @@ fun NoteAppNavGraph() {
                 }
             }
 
-            // Overlay screens rendered on top with slide animation
+            // Overlay screens
             AnimatedVisibility(
                 visible = overlay is Overlay.NoteEdit,
                 enter = slideInHorizontally(initialOffsetX = { it }),
                 exit = slideOutHorizontally(targetOffsetX = { it })
             ) {
                 if (overlay is Overlay.NoteEdit) {
-                    NoteEditScreen(noteId = (overlay as Overlay.NoteEdit).id, onBack = { overlay = Overlay.None })
+                    NoteEditScreen(
+                        noteId = (overlay as Overlay.NoteEdit).id,
+                        onBack = { overlay = Overlay.None }
+                    )
                 }
             }
             AnimatedVisibility(
@@ -188,7 +242,10 @@ fun NoteAppNavGraph() {
                 exit = slideOutHorizontally(targetOffsetX = { it })
             ) {
                 if (overlay is Overlay.TodoEdit) {
-                    TodoEditScreen(todoId = (overlay as Overlay.TodoEdit).id, onBack = { overlay = Overlay.None })
+                    TodoEditScreen(
+                        todoId = (overlay as Overlay.TodoEdit).id,
+                        onBack = { overlay = Overlay.None }
+                    )
                 }
             }
             AnimatedVisibility(
@@ -207,6 +264,15 @@ fun NoteAppNavGraph() {
             ) {
                 if (overlay is Overlay.Settings) {
                     SettingsScreen(onBack = { overlay = Overlay.None })
+                }
+            }
+            AnimatedVisibility(
+                visible = overlay is Overlay.CompletedTodos,
+                enter = slideInHorizontally(initialOffsetX = { it }),
+                exit = slideOutHorizontally(targetOffsetX = { it })
+            ) {
+                if (overlay is Overlay.CompletedTodos) {
+                    CompletedTodosScreen(onBack = { overlay = Overlay.None })
                 }
             }
         }

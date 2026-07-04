@@ -1,6 +1,9 @@
 package com.rmws2002.noteapp.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -13,15 +16,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.rmws2002.noteapp.data.entity.TodoEntity
@@ -34,75 +39,84 @@ fun TodoRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val targetAlpha = if (todo.isCompleted) 1f else 0f
-    val animProgress by animateFloatAsState(
-        targetValue = targetAlpha,
-        animationSpec = tween(durationMillis = 400),
-        label = "strike"
-    )
-
-    val completedColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val activeColor = MaterialTheme.colorScheme.onSurface
-    val targetColor = if (todo.isCompleted) completedColor else activeColor
-    val textColor = if (animProgress > 0f) {
-        lerpColor(activeColor, targetColor, animProgress)
-    } else {
-        targetColor
+    // Checkbox spring scale animation
+    val checkScale = remember { Animatable(if (todo.isCompleted) 1f else 1f) }
+    LaunchedEffect(todo.isCompleted) {
+        if (todo.isCompleted) {
+            checkScale.animateTo(0.3f, tween(100))
+            checkScale.animateTo(1.25f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
+            checkScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+        }
     }
 
-    val strikeColor = completedColor
-    val strikeAlpha = animProgress
+    // Text color animation: onSurface → onSurfaceVariant (muted)
+    val textColor by animateColorAsState(
+        targetValue = if (todo.isCompleted)
+            MaterialTheme.colorScheme.onSurfaceVariant
+        else
+            MaterialTheme.colorScheme.onSurface,
+        animationSpec = tween(350),
+        label = "textColor"
+    )
+
+    // Card alpha: completed cards are dimmer
+    val cardAlpha by animateColorAsState(
+        targetValue = if (todo.isCompleted)
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+        else
+            MaterialTheme.colorScheme.surface,
+        animationSpec = tween(350),
+        label = "cardBg"
+    )
+
+    // Due date color: red if overdue and not completed
+    val isOverdue = todo.dueDate != null && todo.dueDate < System.currentTimeMillis() && !todo.isCompleted
+    val dateColor = if (isOverdue)
+        MaterialTheme.colorScheme.error
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
 
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .alpha(if (todo.isCompleted) 0.65f else 1f)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = cardAlpha),
         border = BorderStroke(
             width = 0.5.dp,
-            color = MaterialTheme.colorScheme.outline
+            color = MaterialTheme.colorScheme.outline.copy(
+                alpha = if (todo.isCompleted) 0.4f else 1f
+            )
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
                 checked = todo.isCompleted,
                 onCheckedChange = { onToggle() },
-                modifier = Modifier.padding(4.dp)
+                modifier = Modifier.scale(checkScale.value),
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = todo.title,
                 style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (animProgress > 0.5f) TextDecoration.LineThrough else TextDecoration.None,
+                textDecoration = if (todo.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
                 color = textColor,
-                modifier = Modifier
-                    .weight(1f)
-                    .drawWithContent {
-                        drawContent()
-                        if (strikeAlpha > 0f) {
-                            val lineY = size.height / 2
-                            val lineEnd = size.width * strikeAlpha
-                            drawLine(
-                                color = strikeColor.copy(alpha = strikeAlpha),
-                                start = Offset(0f, lineY),
-                                end = Offset(lineEnd, lineY),
-                                strokeWidth = 2.dp.toPx()
-                            )
-                        }
-                    }
+                modifier = Modifier.weight(1f)
             )
             if (todo.dueDate != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (todo.reminderTime != null) {
+                    if (todo.reminderTime != null && !todo.isCompleted) {
                         Text(
                             text = "🔔",
                             style = MaterialTheme.typography.labelSmall,
@@ -112,27 +126,22 @@ fun TodoRow(
                     Text(
                         text = if (todo.hasTime) {
                             val cal = java.util.Calendar.getInstance().apply { timeInMillis = todo.dueDate }
-                            String.format("%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+                            String.format(
+                                "%02d:%02d",
+                                cal.get(java.util.Calendar.HOUR_OF_DAY),
+                                cal.get(java.util.Calendar.MINUTE)
+                            )
                         } else {
                             formatShortDate(todo.dueDate)
                         },
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (todo.dueDate != null && todo.dueDate < System.currentTimeMillis() && !todo.isCompleted)
-                            MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 8.dp)
+                        color = if (todo.isCompleted)
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        else dateColor,
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                 }
             }
         }
     }
-}
-
-private fun lerpColor(start: Color, end: Color, fraction: Float): Color {
-    return Color(
-        red = start.red + (end.red - start.red) * fraction,
-        green = start.green + (end.green - start.green) * fraction,
-        blue = start.blue + (end.blue - start.blue) * fraction,
-        alpha = start.alpha + (end.alpha - start.alpha) * fraction
-    )
 }

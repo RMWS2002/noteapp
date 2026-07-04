@@ -23,12 +23,29 @@ class TodoViewModel(application: Application) : AndroidViewModel(application) {
     val allTodos: StateFlow<List<TodoEntity>> = repo.getAllTodos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val completedTodos: StateFlow<List<TodoEntity>> = repo.getCompletedTodos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val tags = tagRepo.getAllTags()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun toggleTodo(todo: TodoEntity) {
         viewModelScope.launch {
-            repo.update(todo.copy(isCompleted = !todo.isCompleted))
+            val now = System.currentTimeMillis()
+            val updated = if (todo.isCompleted) {
+                // Un-completing: clear completedAt
+                todo.copy(isCompleted = false, completedAt = null)
+            } else {
+                // Completing: set completedAt
+                todo.copy(isCompleted = true, completedAt = now)
+            }
+            repo.update(updated)
+        }
+    }
+
+    fun clearCompleted() {
+        viewModelScope.launch {
+            repo.deleteCompleted()
         }
     }
 

@@ -27,27 +27,27 @@ fun TodoListScreen(
     onTodoClick: (Long) -> Unit,
     viewModel: TodoViewModel = viewModel()
 ) {
-    val todos by viewModel.allTodos.collectAsState()
+    val activeTodos by viewModel.allTodos.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (todos.isEmpty()) {
+        if (activeTodos.isEmpty()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 100.dp)
             ) {
-                item { EmptyHint("还没有待办事项，点击 + 添加") }
+                item { EmptyHint("还没有待办事项，点击 + 添加 ✨") }
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 100.dp)
             ) {
-                items(todos, key = { it.id }) { todo ->
+                items(activeTodos, key = { it.id }) { todo ->
                     TodoRow(
                         todo = todo,
                         onToggle = { viewModel.toggleTodo(todo) },
                         onClick = { onTodoClick(todo.id) },
-                        modifier = Modifier.padding(vertical = 5.dp)
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
             }

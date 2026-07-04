@@ -26,5 +26,6 @@ data class TodoEntity(
     @ColumnInfo(name = "has_time") val hasTime: Boolean = false,
     @ColumnInfo(name = "reminder_time") val reminderTime: Long? = null,
     @ColumnInfo(name = "tag_id") val tagId: Long? = null,
+    @ColumnInfo(name = "completed_at") val completedAt: Long? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis()
 )

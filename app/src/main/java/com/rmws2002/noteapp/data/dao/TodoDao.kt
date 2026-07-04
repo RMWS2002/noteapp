@@ -17,6 +17,12 @@ interface TodoDao {
     @Query("SELECT * FROM todos WHERE is_completed = 0 ORDER BY due_date ASC, created_at DESC")
     fun getActiveTodos(): Flow<List<TodoEntity>>
 
+    @Query("SELECT * FROM todos WHERE is_completed = 1 ORDER BY completed_at DESC")
+    fun getCompletedTodos(): Flow<List<TodoEntity>>
+
+    @Query("DELETE FROM todos WHERE is_completed = 1")
+    suspend fun deleteCompleted()
+
     @Query("SELECT * FROM todos WHERE id = :id")
     suspend fun getTodoById(id: Long): TodoEntity?
 
