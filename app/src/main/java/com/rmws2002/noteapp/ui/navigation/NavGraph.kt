@@ -1,12 +1,12 @@
 package com.rmws2002.noteapp.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -29,6 +29,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -36,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,7 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.rmws2002.noteapp.NoteApp
-import com.rmws2002.noteapp.ui.screens.CompletedTodosScreen
+import com.rmws2002.noteapp.ui.screens.CompletedTodosContent
 import com.rmws2002.noteapp.ui.screens.HomeScreen
 import com.rmws2002.noteapp.ui.screens.NoteEditScreen
 import com.rmws2002.noteapp.ui.screens.NoteListScreen
@@ -78,7 +80,6 @@ sealed class Overlay {
     data class TodoEdit(val id: Long?) : Overlay()
     data object ScheduleEdit : Overlay()
     data object Settings : Overlay()
-    data object CompletedTodos : Overlay()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,6 +87,7 @@ sealed class Overlay {
 fun NoteAppNavGraph() {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
+    var showCompletedSheet by remember { mutableStateOf(false) }
     val pager = rememberPagerState(pageCount = { 5 })
 
     // Completed todo count for badge
@@ -104,13 +106,21 @@ fun NoteAppNavGraph() {
     val showTitle = tabIndex != 0
     val showBars = overlay is Overlay.None
 
+    // ── BackHandler: intercept back when any overlay is visible ──
+    BackHandler(enabled = overlay !is Overlay.None || showCompletedSheet) {
+        when {
+            showCompletedSheet -> showCompletedSheet = false
+            overlay !is Overlay.None -> overlay = Overlay.None
+        }
+    }
+
     val topBar: @Composable () -> Unit = if (showBars && showTitle) {{
         TopAppBar(
             title = { Text(tabLabels[tabIndex]) },
             actions = {
                 // Completed todos button (✓ icon with badge)
                 if (completedCount.isNotEmpty()) {
-                    IconButton(onClick = { overlay = Overlay.CompletedTodos }) {
+                    IconButton(onClick = { showCompletedSheet = true }) {
                         BadgedBox(
                             badge = {
                                 Badge(
@@ -132,7 +142,7 @@ fun NoteAppNavGraph() {
                         }
                     }
                 } else {
-                    IconButton(onClick = { overlay = Overlay.CompletedTodos }) {
+                    IconButton(onClick = { showCompletedSheet = true }) {
                         Icon(
                             Icons.Outlined.CheckCircle,
                             contentDescription = "已完成",
@@ -266,15 +276,18 @@ fun NoteAppNavGraph() {
                     SettingsScreen(onBack = { overlay = Overlay.None })
                 }
             }
-            AnimatedVisibility(
-                visible = overlay is Overlay.CompletedTodos,
-                enter = slideInHorizontally(initialOffsetX = { it }),
-                exit = slideOutHorizontally(targetOffsetX = { it })
-            ) {
-                if (overlay is Overlay.CompletedTodos) {
-                    CompletedTodosScreen(onBack = { overlay = Overlay.None })
-                }
-            }
+        }
+    }
+
+    // ── Completed Todos BottomSheet ──
+    if (showCompletedSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showCompletedSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        ) {
+            CompletedTodosContent(onBack = { showCompletedSheet = false })
         }
     }
 }

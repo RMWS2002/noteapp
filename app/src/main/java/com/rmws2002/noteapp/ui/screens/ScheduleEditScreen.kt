@@ -8,23 +8,30 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -37,6 +44,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -59,18 +69,18 @@ fun ScheduleEditScreen(
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
 
-    // Pre-set to next hour
-    val initialCal = remember {
-        Calendar.getInstance().apply {
+    // Pre-set to next hour on first composition
+    val initialized = remember { mutableStateOf(false) }
+    if (!initialized.value) {
+        val cal = Calendar.getInstance().apply {
             add(Calendar.HOUR_OF_DAY, 1)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
-    }
-    if (startTime == System.currentTimeMillis()) {
-        startTime = initialCal.timeInMillis
-        endTime = initialCal.apply { add(Calendar.HOUR_OF_DAY, 1) }.timeInMillis
+        startTime = cal.timeInMillis
+        endTime = cal.timeInMillis + 3600000
+        initialized.value = true
     }
 
     fun saveAndBack() {
@@ -82,7 +92,8 @@ fun ScheduleEditScreen(
 
     fun formatDate(ts: Long): String {
         val cal = Calendar.getInstance().apply { timeInMillis = ts }
-        return "${cal.get(Calendar.MONTH) + 1}月${cal.get(Calendar.DAY_OF_MONTH)}日"
+        return "${cal.get(Calendar.MONTH) + 1}月${cal.get(Calendar.DAY_OF_MONTH)}日" +
+               " 周${listOf("日","一","二","三","四","五","六")[cal.get(Calendar.DAY_OF_WEEK) - 1]}"
     }
     fun formatTime(ts: Long): String {
         val cal = Calendar.getInstance().apply { timeInMillis = ts }
@@ -90,8 +101,12 @@ fun ScheduleEditScreen(
     }
     fun formatDuration(): String {
         val diff = endTime - startTime
-        val mins = diff / 60000
-        return if (mins >= 60) "${mins / 60}小时${mins % 60}分钟" else "${mins}分钟"
+        val mins: Long = diff / 60000L
+        return when {
+            mins < 60L -> "${mins}分钟"
+            mins % 60L == 0L -> "${mins / 60L}小时"
+            else -> "${mins / 60L}小时${mins % 60L}分钟"
+        }
     }
 
     BackHandler(enabled = hasChanges) { showDiscardDialog = true }
@@ -145,8 +160,9 @@ fun ScheduleEditScreen(
             is24Hour = true
         )
         Dialog(onDismissRequest = { showStartTimePicker = false }) {
-            Column(Modifier.padding(24.dp)) {
-                Text("选择开始时间", style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.padding(24.dp).clip(RoundedCornerShape(16.dp))) {
+                Text("开始时间", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
                 TimePicker(state = timeState)
                 Row(Modifier.fillMaxWidth()) {
                     TextButton(onClick = { showStartTimePicker = false }) { Text("取消") }
@@ -157,7 +173,7 @@ fun ScheduleEditScreen(
                         c.set(Calendar.HOUR_OF_DAY, timeState.hour)
                         c.set(Calendar.MINUTE, timeState.minute)
                         startTime = c.timeInMillis
-                        endTime = startTime + diff
+                        endTime = startTime + diff.coerceAtLeast(300000) // min 5 min
                         hasChanges = true
                         showStartTimePicker = false
                     }) { Text("确定") }
@@ -175,8 +191,9 @@ fun ScheduleEditScreen(
             is24Hour = true
         )
         Dialog(onDismissRequest = { showEndTimePicker = false }) {
-            Column(Modifier.padding(24.dp)) {
-                Text("选择结束时间", style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.padding(24.dp).clip(RoundedCornerShape(16.dp))) {
+                Text("结束时间", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
                 TimePicker(state = timeState)
                 Row(Modifier.fillMaxWidth()) {
                     TextButton(onClick = { showEndTimePicker = false }) { Text("取消") }
@@ -185,7 +202,7 @@ fun ScheduleEditScreen(
                         val c = Calendar.getInstance().apply { timeInMillis = endTime }
                         c.set(Calendar.HOUR_OF_DAY, timeState.hour)
                         c.set(Calendar.MINUTE, timeState.minute)
-                        endTime = c.timeInMillis.coerceAtLeast(startTime + 600000)
+                        endTime = c.timeInMillis.coerceAtLeast(startTime + 300000)
                         hasChanges = true
                         showEndTimePicker = false
                     }) { Text("确定") }
@@ -197,13 +214,11 @@ fun ScheduleEditScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("新建日程") },
+                title = { Text("新建日程", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    TextButton(onClick = {
                         if (hasChanges) showDiscardDialog = true else onBack()
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
+                    }) { Text("取消", color = MaterialTheme.colorScheme.primary) }
                 },
                 actions = {
                     TextButton(onClick = { saveAndBack() }) {
@@ -217,59 +232,216 @@ fun ScheduleEditScreen(
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            OutlinedTextField(
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Spacer(Modifier.height(12.dp))
+
+            // ── Title: borderless, headline style ──
+            TextField(
                 value = title,
                 onValueChange = { title = it; hasChanges = true },
-                label = { Text("日程标题") },
+                placeholder = {
+                    Text("日程标题",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                    )
+                },
+                textStyle = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
 
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(16.dp))
 
-            // Date row
+            // ── Quick date presets ──
             Row(
-                Modifier.fillMaxWidth().clickable { showDatePicker = true }.padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.primary)
-                Text(formatDate(startTime), style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp))
+                val todayStart = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 9); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
+                }.timeInMillis
+                val todayEnd = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 10); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
+                }.timeInMillis
+                val tomorrowStart = Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 9); set(Calendar.MINUTE, 0)
+                }.timeInMillis
+                val tomorrowEnd = Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 10); set(Calendar.MINUTE, 0)
+                }.timeInMillis
+                val afterTomorrowStart = Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_MONTH, 2)
+                    set(Calendar.HOUR_OF_DAY, 9); set(Calendar.MINUTE, 0)
+                }.timeInMillis
+                val afterTomorrowEnd = Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_MONTH, 2)
+                    set(Calendar.HOUR_OF_DAY, 10); set(Calendar.MINUTE, 0)
+                }.timeInMillis
+
+                val presets = listOf(
+                    Triple("今天", todayStart, todayEnd),
+                    Triple("明天", tomorrowStart, tomorrowEnd),
+                    Triple("后天", afterTomorrowStart, afterTomorrowEnd)
+                )
+                presets.forEach { (label, s, e) ->
+                    val isActive = startTime == s && endTime == e
+                    FilterChip(
+                        selected = isActive,
+                        onClick = {
+                            startTime = s; endTime = e
+                            hasChanges = true
+                        },
+                        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                }
+                // Custom date chip
+                FilterChip(
+                    selected = startTime !in presets.flatMap { listOf(it.second) },
+                    onClick = { showDatePicker = true },
+                    label = { Text("选日期", style = MaterialTheme.typography.labelMedium) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
             }
 
-            // Start time row
-            Row(
-                Modifier.fillMaxWidth().clickable { showStartTimePicker = true }.padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.AccessTime, null, tint = MaterialTheme.colorScheme.primary)
-                Text("开始: ${formatTime(startTime)}", style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp))
-            }
+            // ── Date ──
+            SettingRow(
+                icon = { Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.primary) },
+                label = "日期",
+                value = formatDate(startTime),
+                onClick = { showDatePicker = true }
+            )
 
-            // End time row
-            Row(
-                Modifier.fillMaxWidth().clickable { showEndTimePicker = true }.padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.AccessTime, null, tint = MaterialTheme.colorScheme.error)
-                Text("结束: ${formatTime(endTime)}", style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp))
-                Spacer(Modifier.weight(1f))
-                Text(formatDuration(), style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Spacer(Modifier.height(2.dp))
+
+            // ── Start time ──
+            SettingRow(
+                icon = { Icon(Icons.Default.AccessTime, null, tint = MaterialTheme.colorScheme.primary) },
+                label = "开始",
+                value = formatTime(startTime),
+                onClick = { showStartTimePicker = true }
+            )
+
+            Spacer(Modifier.height(2.dp))
+
+            // ── End time (with duration) ──
+            SettingRow(
+                icon = { Icon(Icons.Default.AccessTime, null, tint = MaterialTheme.colorScheme.error) },
+                label = "结束",
+                value = "${formatTime(endTime)}  ·  ${formatDuration()}",
+                onClick = { showEndTimePicker = true }
+            )
 
             Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it; hasChanges = true },
-                label = { Text("详细说明") },
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                minLines = 5
-            )
+            // ── Description ──
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Description, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(20.dp))
+                Text("详情", style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.width(72.dp))
+            }
+
+            // Description card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                    .padding(4.dp)
+            ) {
+                TextField(
+                    value = description,
+                    onValueChange = { description = it; hasChanges = true },
+                    placeholder = {
+                        Text("日程详情、地点、备注...",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                            )
+                        )
+                    },
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 150.dp),
+                    minLines = 5,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
+                )
+                if (description.isNotEmpty()) {
+                    Text(
+                        text = "${description.length} 字",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .padding(end = 12.dp, bottom = 8.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+private fun SettingRow(
+    icon: @Composable () -> Unit,
+    label: String,
+    value: String,
+    onClick: () -> Unit = {},
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        icon()
+        Spacer(Modifier.width(20.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.width(72.dp))
+        Text(value, style = MaterialTheme.typography.bodyLarge,
+            color = valueColor,
+            modifier = Modifier.weight(1f))
+        Text("›", style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

@@ -37,11 +37,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rmws2002.noteapp.data.entity.NoteEntity
+import com.rmws2002.noteapp.ui.components.DailyQuote
 import com.rmws2002.noteapp.ui.components.GreetingHeader
+import com.rmws2002.noteapp.ui.components.MiniWeekStrip
 import com.rmws2002.noteapp.ui.components.NoteCard
 import com.rmws2002.noteapp.ui.components.OverviewCard
 import com.rmws2002.noteapp.ui.components.QuickActionChip
 import com.rmws2002.noteapp.ui.components.TodoRow
+import com.rmws2002.noteapp.ui.components.buildWeekDays
 import com.rmws2002.noteapp.ui.util.formatTime
 import com.rmws2002.noteapp.viewmodel.HomeViewModel
 import kotlinx.coroutines.delay
@@ -62,16 +65,21 @@ fun HomeScreen(
     val activeTodos by viewModel.activeTodos.collectAsState()
     val todaySchedules by viewModel.todaySchedules.collectAsState()
     val completedTodoCount by viewModel.completedTodoCount.collectAsState()
+    val weekEventDates by viewModel.weekEventDates.collectAsState()
 
-    // Staggered reveal: 0=nothing, 1=greeting, 2=overview, 3=actions, 4=schedule, 5=todos, 6=notes
+    val weekDays = remember(weekEventDates) { buildWeekDays(weekEventDates) }
+
+    // Staggered reveal: 1=greeting, 2=quote, 3=weekstrip, 4=overview, 5=actions, 6=schedule, 7=todos, 8=notes
     var revealStep by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
-        revealStep = 1; delay(120)
-        revealStep = 2; delay(150)
-        revealStep = 3; delay(120)
+        revealStep = 1; delay(100)
+        revealStep = 2; delay(120)
+        revealStep = 3; delay(100)
         revealStep = 4; delay(120)
-        revealStep = 5; delay(120)
-        revealStep = 6
+        revealStep = 5; delay(100)
+        revealStep = 6; delay(120)
+        revealStep = 7; delay(100)
+        revealStep = 8
     }
 
     LazyColumn(
@@ -91,10 +99,34 @@ fun HomeScreen(
             }
         }
 
-        // 2. Overview card
-        item(key = "overview") {
+        // 2. Daily quote
+        item(key = "quote") {
             AnimatedVisibility(
                 visible = revealStep >= 2,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+            ) {
+                DailyQuote(modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+
+        // 3. Mini week strip
+        item(key = "week_strip") {
+            AnimatedVisibility(
+                visible = revealStep >= 3,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+            ) {
+                MiniWeekStrip(
+                    weekDays = weekDays,
+                    onDayClick = { /* scroll to that day in schedule tab */ },
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        }
+
+        // 4. Overview card
+        item(key = "overview") {
+            AnimatedVisibility(
+                visible = revealStep >= 4,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
             ) {
                 OverviewCard(
@@ -110,10 +142,10 @@ fun HomeScreen(
             }
         }
 
-        // 3. Quick actions
+        // 5. Quick actions
         item(key = "quick_actions") {
             AnimatedVisibility(
-                visible = revealStep >= 3,
+                visible = revealStep >= 5,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
             ) {
                 QuickActionChip(
@@ -124,11 +156,11 @@ fun HomeScreen(
             }
         }
 
-        // 4. Today's schedule (compact horizontal cards)
+        // 6. Today's schedule (compact horizontal cards)
         if (todaySchedules.isNotEmpty()) {
             item(key = "schedule_header") {
                 AnimatedVisibility(
-                    visible = revealStep >= 4,
+                    visible = revealStep >= 6,
                     enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
                 ) {
                     SectionHeader("今日日程", onViewAll = onNavigateToSchedule)
@@ -136,7 +168,7 @@ fun HomeScreen(
             }
             item(key = "schedule_list") {
                 AnimatedVisibility(
-                    visible = revealStep >= 4,
+                    visible = revealStep >= 6,
                     enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
                 ) {
                     androidx.compose.foundation.lazy.LazyRow(
@@ -156,10 +188,10 @@ fun HomeScreen(
             }
         }
 
-        // 5. Active todos
+        // 7. Active todos
         item(key = "todo_header") {
             AnimatedVisibility(
-                visible = revealStep >= 5,
+                visible = revealStep >= 7,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
             ) {
                 SectionHeader("待办事项", onViewAll = onNavigateToTodos)
@@ -168,7 +200,7 @@ fun HomeScreen(
         if (activeTodos.isEmpty()) {
             item(key = "todo_empty") {
                 AnimatedVisibility(
-                    visible = revealStep >= 5,
+                    visible = revealStep >= 7,
                     enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
                 ) {
                     EmptyHint("没有待办事项 ✨")
@@ -177,7 +209,7 @@ fun HomeScreen(
         } else {
             items(activeTodos.take(5), key = { it.id }) { todo ->
                 AnimatedVisibility(
-                    visible = revealStep >= 5,
+                    visible = revealStep >= 7,
                     enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
                 ) {
                     TodoRow(
@@ -190,10 +222,10 @@ fun HomeScreen(
             }
         }
 
-        // 6. Recent notes
+        // 8. Recent notes
         item(key = "notes_header") {
             AnimatedVisibility(
-                visible = revealStep >= 6,
+                visible = revealStep >= 8,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
             ) {
                 SectionHeader("最近笔记", onViewAll = onNavigateToNotes)
@@ -202,7 +234,7 @@ fun HomeScreen(
         if (recentNotes.isEmpty()) {
             item(key = "notes_empty") {
                 AnimatedVisibility(
-                    visible = revealStep >= 6,
+                    visible = revealStep >= 8,
                     enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
                 ) {
                     EmptyHint("没有笔记 📝")
@@ -213,7 +245,7 @@ fun HomeScreen(
             val notesChunks = recentNotes.take(6).chunked(2)
             items(notesChunks, key = { it.firstOrNull()?.id ?: 0L }) { pair ->
                 AnimatedVisibility(
-                    visible = revealStep >= 6,
+                    visible = revealStep >= 8,
                     enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
                 ) {
                     Row(

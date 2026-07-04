@@ -30,6 +30,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         getEndOfDay()
     ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Schedules for the next 7 days (today + 6 future days). */
+    val weekSchedules: StateFlow<List<ScheduleEntity>> = scheduleRepo.getSchedulesInRange(
+        getStartOfDay(),
+        getStartOfDay() + 7 * 86400000L - 1
+    ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Set of start-of-day timestamps that have at least one schedule in the next 7 days. */
+    val weekEventDates: StateFlow<Set<Long>> = weekSchedules.map { schedules ->
+        schedules.mapNotNull { s ->
+            val cal = Calendar.getInstance().apply { timeInMillis = s.startTime }
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            cal.timeInMillis
+        }.toSet()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
     val completedTodoCount: StateFlow<Int> = todoRepo.getCompletedTodos()
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)

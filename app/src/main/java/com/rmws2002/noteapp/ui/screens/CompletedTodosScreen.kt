@@ -1,32 +1,33 @@
 package com.rmws2002.noteapp.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,9 +48,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Content-only version for use in ModalBottomSheet (no Scaffold, no TopAppBar).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CompletedTodosScreen(
+fun CompletedTodosContent(
     onBack: () -> Unit,
     viewModel: TodoViewModel = viewModel()
 ) {
@@ -76,44 +81,38 @@ fun CompletedTodosScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "已完成 (${completedTodos.size})",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    if (completedTodos.isNotEmpty()) {
-                        IconButton(onClick = { showClearDialog = true }) {
-                            Icon(
-                                Icons.Default.DeleteSweep,
-                                contentDescription = "清空",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
-                )
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        // Header row
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "已完成 (${completedTodos.size})",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
             )
+            if (completedTodos.isNotEmpty()) {
+                TextButton(onClick = { showClearDialog = true }) {
+                    Icon(
+                        Icons.Default.DeleteSweep,
+                        contentDescription = "清空",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("清空", color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
-    ) { padding ->
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(Modifier.height(8.dp))
+
         if (completedTodos.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier = Modifier.fillMaxWidth().height(160.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -124,10 +123,8 @@ fun CompletedTodosScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(completedTodos, key = { it.id }) { todo ->
                     Card(
@@ -136,11 +133,10 @@ fun CompletedTodosScreen(
                             .padding(vertical = 4.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         onClick = {
-                            // Restore: un-complete the todo
                             scope.launch { viewModel.toggleTodo(todo) }
                         }
                     ) {
@@ -154,8 +150,9 @@ fun CompletedTodosScreen(
                                 Icons.Default.CheckCircle,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                modifier = Modifier.padding(end = 12.dp)
+                                modifier = Modifier.size(22.dp)
                             )
+                            Spacer(Modifier.width(10.dp))
                             Text(
                                 text = todo.title,
                                 style = MaterialTheme.typography.bodyLarge,
@@ -170,12 +167,14 @@ fun CompletedTodosScreen(
                                 Text(
                                     text = dateFormat.format(Date(todo.completedAt)),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 )
                             }
                         }
                     }
                 }
+                // Bottom spacer for nav bar clearance
+                item { Spacer(Modifier.height(32.dp)) }
             }
         }
     }

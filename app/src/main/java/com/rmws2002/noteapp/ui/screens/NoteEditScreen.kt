@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -261,17 +262,17 @@ fun NoteEditScreen(
                     value = content,
                     onValueChange = { content = it; hasChanges = true },
                     placeholder = {
-                        Text("写下你的想法...",
+                        Text("开始记录...",
                             style = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
                             )
                         )
                     },
                     textStyle = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f, fill = false),
-                    minLines = 10,
+                        .heightIn(min = 200.dp),
+                    minLines = 8,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
