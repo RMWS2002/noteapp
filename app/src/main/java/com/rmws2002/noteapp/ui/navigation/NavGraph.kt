@@ -5,7 +5,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -88,6 +87,22 @@ fun NoteAppNavGraph() {
     val showTitle = tabIndex != 0
     val showBars = overlay is Overlay.None
 
+    val topBar: @Composable () -> Unit = if (showBars && showTitle) {{
+        TopAppBar(
+            title = { Text(tabLabels[tabIndex]) },
+            actions = {
+                IconButton(onClick = { overlay = Overlay.Settings }) {
+                    Icon(Icons.Filled.Settings, "设置",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                titleContentColor = MaterialTheme.colorScheme.onSurface
+            )
+        )
+    }} else {{}}
+
     val bar: @Composable () -> Unit = if (showBars) {{
         NavigationBar(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -115,76 +130,60 @@ fun NoteAppNavGraph() {
         }
     }} else {{}}
 
-    Scaffold(bottomBar = bar) { pad ->
-        Box(Modifier.padding(pad)) {
+    Scaffold(
+        topBar = topBar,
+        bottomBar = bar
+    ) { innerPadding ->
+        Box(Modifier.fillMaxSize()) {
+            // Pager fills available space, respecting Scaffold insets
             if (overlay is Overlay.None) {
-                if (showTitle) {
-                    TopAppBar(
-                        title = { Text(tabLabels[tabIndex]) },
-                        actions = {
-                            IconButton(onClick = { overlay = Overlay.Settings }) {
-                                Icon(Icons.Filled.Settings, "设置",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color.Transparent,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    )
-                }
                 HorizontalPager(
                     state = pager,
-                    modifier = Modifier.fillMaxSize().padding(top = if (showTitle) 56.dp else 0.dp)
+                    modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    when (page) {
-                        0 -> HomeScreen(
-                            onNoteClick = { overlay = Overlay.NoteEdit(it) },
-                            onTodoClick = { overlay = Overlay.TodoEdit(it) },
-                            onNewNote = { overlay = Overlay.NoteEdit(null) },
-                            onNewTodo = { overlay = Overlay.TodoEdit(null) },
-                            onNewSchedule = { overlay = Overlay.ScheduleEdit }
-                        )
-                        1 -> NoteListScreen(
-                            onAddNote = { overlay = Overlay.NoteEdit(null) },
-                            onNoteClick = { overlay = Overlay.NoteEdit(it) }
-                        )
-                        2 -> TodoListScreen(
-                            onAddTodo = { overlay = Overlay.TodoEdit(null) },
-                            onTodoClick = { overlay = Overlay.TodoEdit(it) }
-                        )
-                        3 -> ScheduleScreen(
-                            onAddSchedule = { overlay = Overlay.ScheduleEdit }
-                        )
-                        4 -> SearchScreen(
-                            onNoteClick = { overlay = Overlay.NoteEdit(it) },
-                            onTodoClick = { overlay = Overlay.TodoEdit(it) }
-                        )
+                    // Each page gets innerPadding applied internally
+                    Box(Modifier.fillMaxSize()) {
+                        when (page) {
+                            0 -> HomeScreen(
+                                onNoteClick = { overlay = Overlay.NoteEdit(it) },
+                                onTodoClick = { overlay = Overlay.TodoEdit(it) },
+                                onNewNote = { overlay = Overlay.NoteEdit(null) },
+                                onNewTodo = { overlay = Overlay.TodoEdit(null) },
+                                onNewSchedule = { overlay = Overlay.ScheduleEdit }
+                            )
+                            1 -> NoteListScreen(
+                                onAddNote = { overlay = Overlay.NoteEdit(null) },
+                                onNoteClick = { overlay = Overlay.NoteEdit(it) }
+                            )
+                            2 -> TodoListScreen(
+                                onAddTodo = { overlay = Overlay.TodoEdit(null) },
+                                onTodoClick = { overlay = Overlay.TodoEdit(it) }
+                            )
+                            3 -> ScheduleScreen(
+                                onAddSchedule = { overlay = Overlay.ScheduleEdit }
+                            )
+                            4 -> SearchScreen(
+                                onNoteClick = { overlay = Overlay.NoteEdit(it) },
+                                onTodoClick = { overlay = Overlay.TodoEdit(it) }
+                            )
+                        }
                     }
                 }
             }
+
+            // Overlay screens rendered on top
             when (val o = overlay) {
                 is Overlay.NoteEdit -> {
-                    NoteEditScreen(
-                        noteId = o.id,
-                        onBack = { overlay = Overlay.None }
-                    )
+                    NoteEditScreen(noteId = o.id, onBack = { overlay = Overlay.None })
                 }
                 is Overlay.TodoEdit -> {
-                    TodoEditScreen(
-                        todoId = o.id,
-                        onBack = { overlay = Overlay.None }
-                    )
+                    TodoEditScreen(todoId = o.id, onBack = { overlay = Overlay.None })
                 }
                 is Overlay.ScheduleEdit -> {
-                    ScheduleEditScreen(
-                        onBack = { overlay = Overlay.None }
-                    )
+                    ScheduleEditScreen(onBack = { overlay = Overlay.None })
                 }
                 is Overlay.Settings -> {
-                    SettingsScreen(
-                        onBack = { overlay = Overlay.None }
-                    )
+                    SettingsScreen(onBack = { overlay = Overlay.None })
                 }
                 is Overlay.None -> {}
             }

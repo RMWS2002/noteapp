@@ -33,10 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rmws2002.noteapp.data.calendar.SystemCalendarEvent
 import com.rmws2002.noteapp.data.entity.ScheduleEntity
 import com.rmws2002.noteapp.ui.components.EventDetailSheet
 import com.rmws2002.noteapp.ui.components.TimelineView
 import com.rmws2002.noteapp.ui.util.formatDate
+import com.rmws2002.noteapp.ui.util.formatTime
 import com.rmws2002.noteapp.viewmodel.ScheduleViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -53,13 +55,28 @@ fun ScheduleScreen(
     val selectedDate by viewModel.selectedDate.collectAsState()
     val allSchedules by viewModel.allSchedules.collectAsState()
     val daySchedules by viewModel.getSchedulesForDay(selectedDate).collectAsState(initial = emptyList())
+    val systemEvents by viewModel.systemEvents.collectAsState()
+    val daySystemEvents = viewModel.getSystemEventsForDay(selectedDate)
     var selectedEvent by remember { mutableStateOf<ScheduleEntity?>(null) }
+
+    // Merge system event dates into calendar dots
+    val allEventDates = remember(allSchedules, systemEvents) {
+        val local = allSchedules.map { s ->
+            Instant.ofEpochMilli(s.startTime).atZone(ZoneId.systemDefault()).toLocalDate()
+        }.toSet()
+        val sys = systemEvents.map { e ->
+            Instant.ofEpochMilli(e.startTime).atZone(ZoneId.systemDefault()).toLocalDate()
+        }.toSet()
+        local + sys
+    }
+
+    val hasAnyEvents = daySchedules.isNotEmpty() || daySystemEvents.isNotEmpty()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             CalendarWidget(
                 selectedDate = selectedDate,
-                schedules = allSchedules,
+                eventDates = allEventDates,
                 onDateSelected = { viewModel.selectDate(it) }
             )
 
@@ -69,34 +86,25 @@ fun ScheduleScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
             )
 
-            if (daySchedules.isEmpty()) {
+            if (!hasAnyEvents) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.TopCenter
-                ) {
-                    EmptyHint("当天没有日程")
-                }
+                ) { EmptyHint("当天没有日程") }
             } else {
                 TimelineView(
                     schedules = daySchedules,
+                    systemEvents = daySystemEvents,
                     onEventClick = { selectedEvent = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp)
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp)
                 )
             }
         }
 
-        // FAB
         FloatingActionButton(
             onClick = onAddSchedule,
             containerColor = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = "添加日程")
         }
@@ -114,123 +122,73 @@ fun ScheduleScreen(
 @Composable
 fun CalendarWidget(
     selectedDate: Long,
-    schedules: List<ScheduleEntity>,
+    eventDates: Set<LocalDate>,
     onDateSelected: (Long) -> Unit
 ) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     val monthFormat = DateTimeFormatter.ofPattern("yyyy年M月", Locale.CHINESE)
     val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
-
-    val monthStart = currentMonth.atDay(1)
-    val monthEnd = currentMonth.atEndOfMonth()
-    val eventDates = remember(schedules, currentMonth) {
-        schedules.filter { s ->
-            val date = Instant.ofEpochMilli(s.startTime)
-                .atZone(ZoneId.systemDefault()).toLocalDate()
-            date >= monthStart && date <= monthEnd
-        }.map { s ->
-            Instant.ofEpochMilli(s.startTime)
-                .atZone(ZoneId.systemDefault()).toLocalDate()
-        }.toSet()
-    }
+    val today = LocalDate.now()
 
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
             IconButton(onClick = { currentMonth = currentMonth.minusMonths(1) }) {
                 Icon(Icons.Default.ChevronLeft, contentDescription = "上月")
             }
-            Text(
-                text = currentMonth.format(monthFormat),
-                style = MaterialTheme.typography.titleMedium
-            )
+            Text(currentMonth.format(monthFormat), style = MaterialTheme.typography.titleMedium)
             IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
                 Icon(Icons.Default.ChevronRight, contentDescription = "下月")
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth()) {
             dayNames.forEach { day ->
-                Text(
-                    text = day,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text(day, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(Modifier.height(4.dp))
 
         val firstDayOfMonth = currentMonth.atDay(1)
         val dow = firstDayOfMonth.dayOfWeek.value - 1
         val daysInMonth = currentMonth.lengthOfMonth()
-        val today = LocalDate.now()
         val totalCells = dow + daysInMonth
         val rows = (totalCells + 6) / 7
 
         for (row in 0 until rows) {
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth()) {
                 for (col in 0 until 7) {
                     val cellIndex = row * 7 + col
                     val day = cellIndex - dow + 1
-
                     if (day in 1..daysInMonth) {
                         val date = currentMonth.atDay(day)
-                        val isSelected = date.atStartOfDay(ZoneId.systemDefault())
-                            .toInstant().toEpochMilli() == selectedDate
+                        val millis = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val isSelected = millis == selectedDate
                         val isToday = date == today
                         val hasEvent = date in eventDates
 
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(2.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    when {
-                                        isSelected -> MaterialTheme.colorScheme.primary
-                                        isToday -> MaterialTheme.colorScheme.primaryContainer
-                                        else -> MaterialTheme.colorScheme.surface
-                                    }
-                                )
-                                .clickable {
-                                    val millis = date.atStartOfDay(ZoneId.systemDefault())
-                                        .toInstant().toEpochMilli()
-                                    onDateSelected(millis)
-                                },
+                        Column(Modifier.weight(1f).padding(2.dp).clip(CircleShape)
+                            .background(when {
+                                isSelected -> MaterialTheme.colorScheme.primary
+                                isToday -> MaterialTheme.colorScheme.primaryContainer
+                                else -> MaterialTheme.colorScheme.surface
+                            })
+                            .clickable { onDateSelected(millis) },
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = day.toString(),
-                                style = MaterialTheme.typography.bodyMedium,
+                            Text(day.toString(), style = MaterialTheme.typography.bodyMedium,
                                 color = when {
                                     isSelected -> MaterialTheme.colorScheme.onPrimary
                                     isToday -> MaterialTheme.colorScheme.onPrimaryContainer
                                     else -> MaterialTheme.colorScheme.onSurface
-                                },
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                            if (hasEvent) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(4.dp)
-                                        .padding(bottom = 3.dp)
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                            else MaterialTheme.colorScheme.primary,
-                                            CircleShape
-                                        )
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.size(4.dp))
-                            }
+                                }, modifier = Modifier.padding(top = 4.dp))
+                            if (hasEvent) Box(Modifier.size(4.dp).padding(bottom = 3.dp)
+                                .background(if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.primary, CircleShape))
+                            else Spacer(Modifier.size(4.dp))
                         }
                     } else {
-                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
