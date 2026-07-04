@@ -17,15 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,14 +38,13 @@ import com.rmws2002.noteapp.ui.components.EventDetailSheet
 import com.rmws2002.noteapp.ui.components.TimelineView
 import com.rmws2002.noteapp.ui.util.formatDate
 import com.rmws2002.noteapp.viewmodel.ScheduleViewModel
-import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleScreen(
     onAddSchedule: () -> Unit,
@@ -60,37 +55,14 @@ fun ScheduleScreen(
     val daySchedules by viewModel.getSchedulesForDay(selectedDate).collectAsState(initial = emptyList())
     var selectedEvent by remember { mutableStateOf<ScheduleEntity?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("日程") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddSchedule,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "添加日程")
-            }
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             CalendarWidget(
                 selectedDate = selectedDate,
                 schedules = allSchedules,
                 onDateSelected = { viewModel.selectDate(it) }
             )
 
-            // Date text
             Text(
                 text = formatDate(selectedDate),
                 style = MaterialTheme.typography.titleLarge,
@@ -117,9 +89,19 @@ fun ScheduleScreen(
                 )
             }
         }
+
+        // FAB
+        FloatingActionButton(
+            onClick = onAddSchedule,
+            containerColor = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "添加日程")
+        }
     }
 
-    // Event detail bottom sheet
     selectedEvent?.let { event ->
         EventDetailSheet(
             event = event,
@@ -139,22 +121,20 @@ fun CalendarWidget(
     val monthFormat = DateTimeFormatter.ofPattern("yyyy年M月", Locale.CHINESE)
     val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
 
-    // Get event dates for current month
     val monthStart = currentMonth.atDay(1)
     val monthEnd = currentMonth.atEndOfMonth()
     val eventDates = remember(schedules, currentMonth) {
         schedules.filter { s ->
-            val date = java.time.Instant.ofEpochMilli(s.startTime)
-                .atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            val date = Instant.ofEpochMilli(s.startTime)
+                .atZone(ZoneId.systemDefault()).toLocalDate()
             date >= monthStart && date <= monthEnd
         }.map { s ->
-            java.time.Instant.ofEpochMilli(s.startTime)
-                .atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            Instant.ofEpochMilli(s.startTime)
+                .atZone(ZoneId.systemDefault()).toLocalDate()
         }.toSet()
     }
 
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        // Month navigation
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -172,7 +152,6 @@ fun CalendarWidget(
             }
         }
 
-        // Day headers
         Row(modifier = Modifier.fillMaxWidth()) {
             dayNames.forEach { day ->
                 Text(
@@ -186,12 +165,10 @@ fun CalendarWidget(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Calendar grid
         val firstDayOfMonth = currentMonth.atDay(1)
-        val dow = firstDayOfMonth.dayOfWeek.value - 1 // Monday=1 -> 0-index
+        val dow = firstDayOfMonth.dayOfWeek.value - 1
         val daysInMonth = currentMonth.lengthOfMonth()
         val today = LocalDate.now()
-
         val totalCells = dow + daysInMonth
         val rows = (totalCells + 6) / 7
 
@@ -203,7 +180,7 @@ fun CalendarWidget(
 
                     if (day in 1..daysInMonth) {
                         val date = currentMonth.atDay(day)
-                        val isSelected = date.atStartOfDay(java.time.ZoneId.systemDefault())
+                        val isSelected = date.atStartOfDay(ZoneId.systemDefault())
                             .toInstant().toEpochMilli() == selectedDate
                         val isToday = date == today
                         val hasEvent = date in eventDates
@@ -221,7 +198,7 @@ fun CalendarWidget(
                                     }
                                 )
                                 .clickable {
-                                    val millis = date.atStartOfDay(java.time.ZoneId.systemDefault())
+                                    val millis = date.atStartOfDay(ZoneId.systemDefault())
                                         .toInstant().toEpochMilli()
                                     onDateSelected(millis)
                                 },
@@ -237,7 +214,6 @@ fun CalendarWidget(
                                 },
                                 modifier = Modifier.padding(top = 4.dp)
                             )
-                            // Event dot
                             if (hasEvent) {
                                 Box(
                                     modifier = Modifier

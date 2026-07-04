@@ -33,9 +33,9 @@ import com.rmws2002.noteapp.viewmodel.HomeViewModel
 
 @Composable
 fun HomeScreen(
-    onNavigateToNotes: () -> Unit,
-    onNavigateToTodos: () -> Unit,
-    onNavigateToSchedule: () -> Unit,
+    onNavigateToNotes: () -> Unit = {},
+    onNavigateToTodos: () -> Unit = {},
+    onNavigateToSchedule: () -> Unit = {},
     onNoteClick: (Long) -> Unit,
     onTodoClick: (Long) -> Unit,
     onNewNote: () -> Unit = {},

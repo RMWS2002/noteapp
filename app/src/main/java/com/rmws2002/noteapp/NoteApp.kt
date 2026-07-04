@@ -2,6 +2,7 @@ package com.rmws2002.noteapp
 
 import android.app.Application
 import com.rmws2002.noteapp.data.database.AppDatabase
+import com.rmws2002.noteapp.data.preferences.AppPreferences
 import com.rmws2002.noteapp.repository.NoteRepository
 import com.rmws2002.noteapp.repository.ScheduleRepository
 import com.rmws2002.noteapp.repository.TagRepository
@@ -13,4 +14,5 @@ class NoteApp : Application() {
     val todoRepository: TodoRepository by lazy { TodoRepository(database.todoDao()) }
     val tagRepository: TagRepository by lazy { TagRepository(database.tagDao()) }
     val scheduleRepository: ScheduleRepository by lazy { ScheduleRepository(database.scheduleDao()) }
+    val appPreferences: AppPreferences by lazy { AppPreferences(this) }
 }

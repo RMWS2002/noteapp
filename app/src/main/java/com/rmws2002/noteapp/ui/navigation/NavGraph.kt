@@ -1,214 +1,192 @@
 package com.rmws2002.noteapp.ui.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.rmws2002.noteapp.ui.screens.HomeScreen
 import com.rmws2002.noteapp.ui.screens.NoteEditScreen
 import com.rmws2002.noteapp.ui.screens.NoteListScreen
 import com.rmws2002.noteapp.ui.screens.ScheduleEditScreen
 import com.rmws2002.noteapp.ui.screens.ScheduleScreen
 import com.rmws2002.noteapp.ui.screens.SearchScreen
+import com.rmws2002.noteapp.ui.screens.SettingsScreen
 import com.rmws2002.noteapp.ui.screens.TodoEditScreen
 import com.rmws2002.noteapp.ui.screens.TodoListScreen
 
-sealed class Screen(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
-    data object Home : Screen("home", "首页", Icons.Outlined.Home, Icons.Filled.Home)
-    data object Notes : Screen("notes", "笔记", Icons.Outlined.Description, Icons.Filled.Description)
-    data object Todos : Screen("todos", "待办", Icons.Outlined.Checklist, Icons.Filled.Checklist)
-    data object Schedule : Screen("schedule", "日程", Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth)
-    data object Search : Screen("search", "搜索", Icons.Outlined.Search, Icons.Filled.Search)
-}
-
-val bottomNavItems = listOf(
-    Screen.Home,
-    Screen.Notes,
-    Screen.Todos,
-    Screen.Schedule,
-    Screen.Search
+private val tabLabels = listOf("首页", "笔记", "待办", "日程", "搜索")
+private val tabOutlined = listOf(
+    Icons.Outlined.Home, Icons.Outlined.Description,
+    Icons.Outlined.Checklist, Icons.Outlined.CalendarMonth, Icons.Outlined.Search
+)
+private val tabFilled = listOf(
+    Icons.Filled.Home, Icons.Filled.Description,
+    Icons.Filled.Checklist, Icons.Filled.CalendarMonth, Icons.Filled.Search
 )
 
+sealed class Overlay {
+    data object None : Overlay()
+    data class NoteEdit(val id: Long?) : Overlay()
+    data class TodoEdit(val id: Long?) : Overlay()
+    data object ScheduleEdit : Overlay()
+    data object Settings : Overlay()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteAppNavGraph() {
-    val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute in listOf("home", "notes", "todos", "schedule", "search")
+    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
+    var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
+    val pager = rememberPagerState(pageCount = { 5 })
 
-    val bottomBar: @Composable () -> Unit = if (showBottomBar) {
-        {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 3.dp
-            ) {
-                val currentDestination = navBackStackEntry?.destination
+    LaunchedEffect(pager) {
+        snapshotFlow { pager.currentPage }.collect { tabIndex = it }
+    }
+    LaunchedEffect(tabIndex) {
+        pager.animateScrollToPage(tabIndex)
+    }
 
-                bottomNavItems.forEach { screen ->
-                    val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) screen.selectedIcon else screen.icon,
-                                contentDescription = screen.label
-                            )
-                        },
-                        label = { Text(screen.label) },
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
+    val showTitle = tabIndex != 0
+    val showBars = overlay is Overlay.None
+
+    val bar: @Composable () -> Unit = if (showBars) {{
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            tabLabels.forEachIndexed { i, label ->
+                val sel = tabIndex == i
+                NavigationBarItem(
+                    icon = {
+                        Icon(
+                            if (sel) tabFilled[i] else tabOutlined[i],
+                            contentDescription = label
+                        )
+                    },
+                    label = { Text(label) },
+                    selected = sel,
+                    onClick = { tabIndex = i },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            }
+        }
+    }} else {{}}
+
+    Scaffold(bottomBar = bar) { pad ->
+        Box(Modifier.padding(pad)) {
+            if (overlay is Overlay.None) {
+                if (showTitle) {
+                    TopAppBar(
+                        title = { Text(tabLabels[tabIndex]) },
+                        actions = {
+                            IconButton(onClick = { overlay = Overlay.Settings }) {
+                                Icon(Icons.Filled.Settings, "设置",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface
                         )
                     )
                 }
+                HorizontalPager(
+                    state = pager,
+                    modifier = Modifier.fillMaxSize().padding(top = if (showTitle) 56.dp else 0.dp)
+                ) { page ->
+                    when (page) {
+                        0 -> HomeScreen(
+                            onNoteClick = { overlay = Overlay.NoteEdit(it) },
+                            onTodoClick = { overlay = Overlay.TodoEdit(it) },
+                            onNewNote = { overlay = Overlay.NoteEdit(null) },
+                            onNewTodo = { overlay = Overlay.TodoEdit(null) },
+                            onNewSchedule = { overlay = Overlay.ScheduleEdit }
+                        )
+                        1 -> NoteListScreen(
+                            onAddNote = { overlay = Overlay.NoteEdit(null) },
+                            onNoteClick = { overlay = Overlay.NoteEdit(it) }
+                        )
+                        2 -> TodoListScreen(
+                            onAddTodo = { overlay = Overlay.TodoEdit(null) },
+                            onTodoClick = { overlay = Overlay.TodoEdit(it) }
+                        )
+                        3 -> ScheduleScreen(
+                            onAddSchedule = { overlay = Overlay.ScheduleEdit }
+                        )
+                        4 -> SearchScreen(
+                            onNoteClick = { overlay = Overlay.NoteEdit(it) },
+                            onTodoClick = { overlay = Overlay.TodoEdit(it) }
+                        )
+                    }
+                }
             }
-        }
-    } else {
-        {}
-    }
-
-    Scaffold(
-        bottomBar = bottomBar
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding),
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(300)
-                ) + fadeIn(animationSpec = tween(300))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it / 3 },
-                    animationSpec = tween(300)
-                ) + fadeOut(animationSpec = tween(300))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it / 3 },
-                    animationSpec = tween(300)
-                ) + fadeIn(animationSpec = tween(300))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(300)
-                ) + fadeOut(animationSpec = tween(300))
-            }
-        ) {
-            composable(Screen.Home.route) {
-                HomeScreen(
-                    onNavigateToNotes = { navController.navigate(Screen.Notes.route) },
-                    onNavigateToTodos = { navController.navigate(Screen.Todos.route) },
-                    onNavigateToSchedule = { navController.navigate(Screen.Schedule.route) },
-                    onNoteClick = { id -> navController.navigate("note_edit/$id") },
-                    onTodoClick = { id -> navController.navigate("todo_edit/$id") },
-                    onNewNote = { navController.navigate("note_edit/0") },
-                    onNewTodo = { navController.navigate("todo_edit/0") },
-                    onNewSchedule = { navController.navigate("schedule_edit") }
-                )
-            }
-
-            composable(Screen.Notes.route) {
-                NoteListScreen(
-                    onAddNote = { navController.navigate("note_edit/0") },
-                    onNoteClick = { id -> navController.navigate("note_edit/$id") }
-                )
-            }
-
-            composable(
-                route = "note_edit/{noteId}",
-                arguments = listOf(navArgument("noteId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val noteId = backStackEntry.arguments?.getLong("noteId") ?: 0L
-                NoteEditScreen(
-                    noteId = if (noteId == 0L) null else noteId,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(Screen.Todos.route) {
-                TodoListScreen(
-                    onAddTodo = { navController.navigate("todo_edit/0") },
-                    onTodoClick = { id -> navController.navigate("todo_edit/$id") }
-                )
-            }
-
-            composable(
-                route = "todo_edit/{todoId}",
-                arguments = listOf(navArgument("todoId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val todoId = backStackEntry.arguments?.getLong("todoId") ?: 0L
-                TodoEditScreen(
-                    todoId = if (todoId == 0L) null else todoId,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(Screen.Schedule.route) {
-                ScheduleScreen(
-                    onAddSchedule = { navController.navigate("schedule_edit") }
-                )
-            }
-
-            composable("schedule_edit") {
-                ScheduleEditScreen(
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(Screen.Search.route) {
-                SearchScreen(
-                    onNoteClick = { id -> navController.navigate("note_edit/$id") },
-                    onTodoClick = { id -> navController.navigate("todo_edit/$id") }
-                )
+            when (val o = overlay) {
+                is Overlay.NoteEdit -> {
+                    NoteEditScreen(
+                        noteId = o.id,
+                        onBack = { overlay = Overlay.None }
+                    )
+                }
+                is Overlay.TodoEdit -> {
+                    TodoEditScreen(
+                        todoId = o.id,
+                        onBack = { overlay = Overlay.None }
+                    )
+                }
+                is Overlay.ScheduleEdit -> {
+                    ScheduleEditScreen(
+                        onBack = { overlay = Overlay.None }
+                    )
+                }
+                is Overlay.Settings -> {
+                    SettingsScreen(
+                        onBack = { overlay = Overlay.None }
+                    )
+                }
+                is Overlay.None -> {}
             }
         }
     }

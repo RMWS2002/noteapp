@@ -3,6 +3,7 @@ package com.rmws2002.noteapp.ui.theme
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import com.rmws2002.noteapp.data.preferences.ThemeMode
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -64,21 +65,27 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun NoteAppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val systemDark = isSystemInDarkTheme()
+    val isDark = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> systemDark
+    }
+    val colorScheme = if (isDark) DarkColorScheme else LightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = if (darkTheme) {
+            window.statusBarColor = if (isDark) {
                 Color.Transparent.toArgb()
             } else {
                 colorScheme.background.toArgb()
             }
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
         }
     }
 
